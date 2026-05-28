@@ -1,0 +1,3 @@
+SELECT * 
+FROM Table t
+WHERE t.id = 0;
