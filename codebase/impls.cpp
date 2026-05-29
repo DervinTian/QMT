@@ -63,13 +63,22 @@ void create_qmt(cmd_args arguments){
     }
 
     std::ofstream tbl(table_path);
+    // SSIS_Users
+    // Maetl12r#3
+
+    // for(int i = 0; i < arguments.create.attributes.size(); ++i){
+    //     for(int j = 0; j < arguments.create.attributes[i].size(); ++j){
+    //         std::cout << "#: " << arguments.create.attributes[i][j] << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
     for(size_t i = 0; i < arguments.create.attributes.size(); ++i){
         std::vector<std::string> attribute = arguments.create.attributes[i];
         for(size_t j = 0; j < attribute.size(); ++j){
-            tbl << attribute[0] + "_" + attribute[1];
+            tbl << attribute[j];
             if(j != attribute.size() - 1){
-                tbl << ";";
+                tbl << "_";
             }
         }
     }

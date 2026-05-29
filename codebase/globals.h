@@ -21,8 +21,8 @@ struct select_args{
 };
 
 struct insert_args{
+    std::string tbl_name;
     std::vector<std::string> ins_columns;
-    std::string data_dest;
     std::vector<std::string> values;
 };
 
