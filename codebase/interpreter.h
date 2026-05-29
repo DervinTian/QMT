@@ -1,29 +1,19 @@
+#pragma once
 #include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <utility>
+#include <unordered_map>
 #include <vector>
 
-enum cmd_type{
-    SELECT,
-    INSERT,
-    DELETE,
-};
+#include "globals.h"
 
-struct cmd_args{
-    cmd_type cmd;
+void init_function_map();
 
-    std::vector<std::string> sel_columns;
-    std::string data_dest;
-};
+void init_impl_map();
 
 bool end_statement(std::string line);
 
 bool run_interpreter(std::vector<std::string> command);
 
-void select_qmt(cmd_args arguments);
-
-void insert_qmt(cmd_args arguments);
-
-void delete_qmt(cmd_args arguments);

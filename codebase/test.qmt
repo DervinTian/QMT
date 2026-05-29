@@ -1,3 +1,5 @@
-SELECT * 
-FROM Table t
-WHERE t.id = 0;
+CREATE test_tbl (
+    string name,
+    int age,
+    string desc
+);
