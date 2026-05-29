@@ -1,8 +1,0 @@
-CREATE test_tbl (
-    string name,
-    int age,
-    string desc
-);
-
-INSERT test_tbl (name, age, desc)
-VALUES ("John", 18, "Tall male with slender build");

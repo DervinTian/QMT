@@ -63,27 +63,44 @@ void create_qmt(cmd_args arguments){
     }
 
     std::ofstream tbl(table_path);
-    // SSIS_Users
-    // Maetl12r#3
 
-    // for(int i = 0; i < arguments.create.attributes.size(); ++i){
-    //     for(int j = 0; j < arguments.create.attributes[i].size(); ++j){
-    //         std::cout << "#: " << arguments.create.attributes[i][j] << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
+}
 
-    for(size_t i = 0; i < arguments.create.attributes.size(); ++i){
-        std::vector<std::string> attribute = arguments.create.attributes[i];
-        for(size_t j = 0; j < attribute.size(); ++j){
-            tbl << attribute[j];
-            if(j != attribute.size() - 1){
-                tbl << "_";
-            }
-        }
+void add_col_qmt(cmd_args arguments){
+    std::cout << "Running addcol implementation, can fill out semantics later\n";
+
+    if(!valid_pathname(db_path)){
+        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
+        exit(1);
     }
 
-    tbl << std::endl;
+    if(!valid_table(arguments.create.tbl_name)){
+        std::cout << "Invalid tablename (tablename is: " << arguments.add_cols.tbl_name << ") detected.\n";
+        exit(2);
+    }
+
+    std::string table_path = db_path + "/" + arguments.add_cols.tbl_name;
+    std::string schema_path = db_path + "/schemas/" + arguments.add_cols.tbl_name;
+
+    if(!fs::exists(table_path)){
+        std::cout << "Table " << arguments.create.tbl_name << " doesn't exist!\n";
+        exit(3);
+    }
+
+    if(!fs::exists(schema_path)){
+        std::ofstream schema(schema_path);
+    }
+
+    std::string line;
+    std::ifstream schema(schema_path);
+    while(std::getline(schema, line));
+    schema.close();
+
+    line += arguments.add_cols.column_name + "_" + arguments.add_cols.type + ",";
+
+    std::ofstream out_schema(schema_path);
+    out_schema << line;
+
 }
 
 void delete_qmt(cmd_args arguments){

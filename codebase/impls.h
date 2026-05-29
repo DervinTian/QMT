@@ -15,4 +15,6 @@ void insert_qmt(cmd_args arguments);
 
 void create_qmt(cmd_args arguments);
 
+void add_col_qmt(cmd_args arguments);
+
 void delete_qmt(cmd_args arguments);

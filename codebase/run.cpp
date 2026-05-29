@@ -36,17 +36,12 @@ int main(int argc, char* argv[]){
     int line_num = 1;
     while(std::getline(file, line)){
         command.push_back(line);
-        if(!end_statement(line)){
-            line_num++;
+        if(!run_interpreter(command)){
+            std::cout << "Error in command ending at line " << line_num << std::endl;
+            exit(1);
         }
-        else{
-            if(!run_interpreter(command)){
-                std::cout << "Error in command ending at line " << line_num << std::endl;
-                exit(1);
-            }
-            command.clear();
-        }
+        command.clear();
+        line_num++;
     }
-
 
 }
