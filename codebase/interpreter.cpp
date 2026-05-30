@@ -7,6 +7,7 @@
 #include <cctype>
 
 #include "interpreter.h"
+#include "globals.h"
 #include "fill_args.h"
 #include "impls.h"
 
@@ -24,6 +25,13 @@ void init_impl_map(){
     cmd_impls["create"] = create_qmt;
     cmd_impls["addcol"] = add_col_qmt;
     cmd_impls["delete"] = delete_qmt;
+}
+
+void init_check_map(){
+    check_value_against_type["string"] = check_string;
+    check_value_against_type["int"] = check_int;
+    check_value_against_type["bool"] = check_bool;
+    check_value_against_type["char"] = check_char;
 }
 
 bool end_statement(std::string line){

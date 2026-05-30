@@ -23,7 +23,6 @@ struct select_args{
 
 struct insert_args{
     std::string tbl_name;
-    std::vector<std::string> ins_columns;
     std::vector<std::string> values;
 };
 
@@ -48,4 +47,8 @@ struct cmd_args{
 
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, cmd_args&)>> fill_in_cmd;
 extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;
+extern std::unordered_map<std::string, std::function<bool(std::string&)>> check_value_against_type;
 extern std::string db_path;
+
+bool valid_table(std::string table);
+bool valid_pathname(std::string pathname);

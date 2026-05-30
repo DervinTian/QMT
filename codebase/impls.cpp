@@ -9,29 +9,9 @@
 #include <cctype>
 
 #include "interpreter.h"
+#include "globals.h"
 
 namespace fs = std::filesystem;
-
-bool valid_pathname(std::string pathname){
-    if(db_path[0] != '/'){
-        return false;
-    }
-    return true;
-}
-
-bool valid_table(std::string table){
-    auto it = table.find(" ");
-    if(it != std::string::npos){
-        return false;
-    }
-
-    it = table.find("/");
-    if(it != std::string::npos){
-        return false;
-    }
-
-    return true;
-}
 
 void select_qmt(cmd_args arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
@@ -40,6 +20,34 @@ void select_qmt(cmd_args arguments){
 void insert_qmt(cmd_args arguments){
     std::cout << "Running insert implementation, can fill out semantics later\n";
 
+    if(!valid_pathname(db_path)){
+        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
+        exit(1);
+    }
+
+    if(!valid_table(arguments.insert.tbl_name)){
+        std::cout << "Invalid tablename (tablename is: " << arguments.insert.tbl_name << ") detected.\n";
+        exit(2);
+    }
+
+    std::string table_path = db_path + "/" + arguments.insert.tbl_name;
+
+    if(!fs::exists(table_path)){
+        std::cout << "Table " << arguments.insert.tbl_name << " doesn't exist!\n";
+        exit(3);
+    }
+
+    std::ofstream tbl(table_path, std::ios::app);
+
+    for(size_t i = 0; i < arguments.insert.values.size(); ++i){
+        tbl << arguments.insert.values[i];
+        if(i != arguments.insert.values.size() - 1){
+            tbl << ',';
+        }
+    }
+
+    tbl << '\n';
+    tbl.close();
 }
 
 void create_qmt(cmd_args arguments){
@@ -100,6 +108,8 @@ void add_col_qmt(cmd_args arguments){
 
     std::ofstream out_schema(schema_path);
     out_schema << line;
+
+    out_schema.close();
 
 }
 

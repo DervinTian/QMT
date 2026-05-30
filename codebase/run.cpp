@@ -30,6 +30,7 @@ int main(int argc, char* argv[]){
 
     init_function_map();
     init_impl_map();
+    init_check_map();
 
     std::string line; // hold each QMT line
     std::vector<std::string> command; // hold a chunk of QMT lines that represents a command, ends with ";"

@@ -1,1 +1,1 @@
-INSERT(test_tbl, )
+INSERT (test_tbl, "John", 18, "Tall slender male")
