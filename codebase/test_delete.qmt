@@ -1,0 +1,2 @@
+# CREATE (expendable_tbl);
+DELETE (expendable_tbl);

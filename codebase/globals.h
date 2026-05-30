@@ -13,6 +13,7 @@ enum cmd_type{
     CREATE,
     ADD_COL,
     DELETE,
+    NONE
 };
 
 struct select_args{
@@ -36,6 +37,10 @@ struct add_col_args{
     std::string type;
 };
 
+struct delete_args{
+    std::string tbl_name;
+};
+
 struct cmd_args{
     cmd_type cmd;
 
@@ -43,6 +48,7 @@ struct cmd_args{
     insert_args insert;
     create_args create;
     add_col_args add_cols;
+    delete_args deleted;
 };
 
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, cmd_args&)>> fill_in_cmd;

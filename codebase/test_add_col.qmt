@@ -1,1 +1,1 @@
-ADDCOL (test_tbl, string, desc)
+ADDCOL (test_tbl, string, desc);

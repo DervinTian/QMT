@@ -36,13 +36,18 @@ int main(int argc, char* argv[]){
     std::vector<std::string> command; // hold a chunk of QMT lines that represents a command, ends with ";"
     int line_num = 1;
     while(std::getline(file, line)){
-        command.push_back(line);
-        if(!run_interpreter(command)){
-            std::cout << "Error in command ending at line " << line_num << std::endl;
-            exit(1);
+        if(line[0] == '#'){
+            continue;
         }
-        command.clear();
+        command.push_back(line);
         line_num++;
+        if(end_statement(line)){
+            if(!run_interpreter(command)){
+                std::cout << "Error in command ending at line " << line_num << std::endl;
+                    exit(1);
+                }
+            command.clear();
+        }
     }
 
 }

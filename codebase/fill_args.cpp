@@ -183,6 +183,8 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
         std::vector<std::string> line_content;
         std::string line = command[i];
 
+        bool time_go = false;
+
         if(line.size() == 0){
             continue;
         }
@@ -193,21 +195,24 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
         
         while(ss >> tmp){
             if(tmp == "CREATE"){
+                time_go = true;
                 continue;
             }
             
-            for(size_t j = 0; j < tmp.size(); ++j){
-                if(tmp[j] == '('){
-                    continue;
+            if(time_go){
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.create.tbl_name = tbl_name;
+                        break;
+                    }
+                    tbl_name += tmp[j];
                 }
-                if(tmp[j] == ')'){
-                    break;
-                }
-                tbl_name += tmp[j];
-            }
-        }
+            }   
 
-        args.create.tbl_name = tbl_name;
+        }
     }
 }
 
@@ -269,5 +274,40 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args){
 void fill_delete_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Delete function added to the function map, can fill out args for delete statements" << std::endl;
     args.cmd = DELETE;
+
+    for(size_t i = 0; i < command.size(); ++i){
+        std::vector<std::string> line_content;
+        std::string line = command[i];
+
+        bool time_go = false;
+
+        if(line.size() == 0){
+            continue;
+        }
+
+        std::stringstream ss(line);
+        std::string tmp;
+        std::string tbl_name;
+        
+        while(ss >> tmp){
+            if(tmp == "DELETE"){
+                time_go = true;
+                continue;
+            }
+            
+            if(time_go){
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.deleted.tbl_name = tbl_name;
+                        break;
+                    }
+                    tbl_name += tmp[j];
+                }
+            }
+        }
+    }
 }
 

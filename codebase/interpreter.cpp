@@ -61,6 +61,10 @@ bool run_interpreter(std::vector<std::string> command){
             return false;
         }
 
+        if(line.back() == ';'){
+            line = line.substr(0, line.size() - 1);
+        }
+
         std::stringstream ss(line);
         std::string temp;
         ss >> cmd_type;
