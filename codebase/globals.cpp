@@ -99,11 +99,6 @@ std::vector<std::vector<std::string>> read_schema(const std::string &schema_path
     return result;
 }
 
-bool evaluate_expression(std::string lhs_val, cmp_object rhs, std::string comparator){
-    
-    return true;
-}
-
 std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const select_additional_args &constraints){
 
     // Structure of the in-memory table will be defined here
