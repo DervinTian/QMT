@@ -16,6 +16,8 @@ namespace fs = std::filesystem;
 void select_qmt(cmd_args arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
 
+    std::cout << arguments.select.additionals[0] << std::endl;
+
     if(!valid_pathname(db_path)){
         std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
         exit(1);

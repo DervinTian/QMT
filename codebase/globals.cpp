@@ -19,6 +19,8 @@ std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;
 std::unordered_map<std::string, std::function<bool(std::string&)>> check_value_against_type;
 std::string db_path;
 
+int executing_line_num = 0;
+
 bool valid_pathname(std::string pathname){
     if(db_path[0] != '/'){
         return false;

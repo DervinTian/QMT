@@ -21,7 +21,7 @@ int main(int argc, char* argv[]){
 
     std::ifstream file(filename);
     if(!file){
-        std::cout << "Input file failed to open!\n";
+        std::cout << "Input file (path: " << filename << ") failed to open!\n";
         exit(1);
     }
 
@@ -35,12 +35,12 @@ int main(int argc, char* argv[]){
     std::string line; // hold each QMT line
     std::vector<std::string> command; // hold a chunk of QMT lines that represents a command, ends with ";"
     int line_num = 1;
+    
     while(std::getline(file, line)){
         if(line[0] == '#'){
             continue;
         }
         command.push_back(line);
-        line_num++;
         if(end_statement(line)){
             if(!run_interpreter(command)){
                 std::cout << "Error in command ending at line " << line_num << std::endl;
@@ -48,6 +48,7 @@ int main(int argc, char* argv[]){
                 }
             command.clear();
         }
+        line_num++;
     }
 
 }

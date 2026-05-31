@@ -16,10 +16,22 @@ enum cmd_type{
     NONE
 };
 
+struct where_args{
+    std::string lhs_expression;
+    std::string rhs_expression;
+    std::string comparator;
+};
+
+struct select_additional_args{
+    where_args where;
+};
+
 struct select_args{
     std::string tbl_name;
     std::vector<std::string> sel_columns;
     std::vector<std::string> additionals;
+
+    select_additional_args additional_args;
 };
 
 struct insert_args{
@@ -55,6 +67,7 @@ extern std::unordered_map<std::string, std::function<void(const std::vector<std:
 extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;
 extern std::unordered_map<std::string, std::function<bool(std::string&)>> check_value_against_type;
 extern std::string db_path;
+extern int executing_line_num;
 
 bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
