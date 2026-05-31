@@ -13,7 +13,7 @@
 
 namespace fs = std::filesystem;
 
-bool check_string(std::string &value){
+bool check_string(const std::string &value){
     bool return_val = false;
     if(value.front() == '\"' && value.back() == '\"'){
         return_val = true;
@@ -21,7 +21,7 @@ bool check_string(std::string &value){
     return return_val;
 }
 
-bool check_int(std::string &value){
+bool check_int(const std::string &value){
     bool all_numeric = true;
     for(size_t i = 0; i < value.size(); ++i){
         if(!std::isdigit(value[i])){
@@ -32,14 +32,14 @@ bool check_int(std::string &value){
     return all_numeric;
 }
 
-bool check_bool(std::string &value){
+bool check_bool(const std::string &value){
     if(value == "True" || value == "False"){
         return true;
     }
     return false;
 }
 
-bool check_char(std::string &value){
+bool check_char(const std::string &value){
     bool return_val = false;
     if(value.front() == '\'' && value.back() == '\''){
         return_val = true;
@@ -99,6 +99,48 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                     else{
                         attr += tmp[j];
                     }
+                }
+            }
+        }
+    }
+}
+
+void fill_where_args(const std::string &command, select_additional_args &args){
+    std::cout << "Where function added to the function map, can fill out args for where statements" << std::endl;
+    std::stringstream ss(command);
+    std::string tmp;
+
+    bool go_time = false;
+    int mode = 0;
+
+    while(ss >> tmp){
+        if(tmp == "WHERE"){
+            go_time = true;
+            continue;
+        }
+
+        if(go_time){
+            std::string attr;
+            for(size_t j = 0; j < tmp.size(); ++j){
+                if(tmp[j] == '('){
+                    continue;
+                }
+                if(tmp[j] == ')'){
+                    args.where.rhs_expression = attr;
+                    break;
+                }
+
+                if(tmp[j] == ','){
+                    if(mode == 0){
+                        args.where.lhs_expression = attr;
+                        mode = 1;
+                    }
+                    else if(mode == 1){
+                        args.where.comparator = attr;
+                    }
+                }
+                else{
+                    attr += tmp[j];
                 }
             }
         }
@@ -167,7 +209,7 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
 
                 }
 
-                if(table == 1){
+                if(table == 1){ // used for early termination, since we just want to read in the table name here
                     char_idx++; // helps us get out of the comma
                     break;
                 }
@@ -290,14 +332,10 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args){
                         if(mode == 0){
                             args.add_cols.tbl_name = attr;
                             mode = 1;
-                            continue;
                         }
                         else if(mode == 1){
                             args.add_cols.type = attr;
-                            mode = 2;
-                            continue;
                         }
-                        attr.clear();
                     }
                     else{
                         attr += tmp[j];

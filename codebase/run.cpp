@@ -8,7 +8,7 @@
 #include "interpreter.h"
 #include "globals.h"
 
-// compile command g++ -g -std=c++20 run.cpp interpreter.cpp globals.cpp impls.cpp fill_args.cpp -o run
+// compile command g++ -g -std=c++20 run.cpp interpreter.cpp globals.cpp impls.cpp fill_args.cpp comp.cpp -o run
 // usage cmd ./run [INSERT QMT FILENAME]
 
 int main(int argc, char* argv[]){
@@ -29,8 +29,6 @@ int main(int argc, char* argv[]){
     database_name >> db_path;
 
     init_function_map();
-    init_impl_map();
-    init_check_map();
 
     std::string line; // hold each QMT line
     std::vector<std::string> command; // hold a chunk of QMT lines that represents a command, ends with ";"

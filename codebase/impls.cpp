@@ -13,11 +13,41 @@
 
 namespace fs = std::filesystem;
 
-void select_qmt(cmd_args arguments){
+void where_qmt(const select_additional_args &arguments){
+    std::cout << "Running where implementation, can fill out semantics later\n";
+
+    std::string schema_path = db_path + "/schemas/" + arguments.where.tbl_name;
+
+    if(!fs::exists(schema_path)){
+        return;
+    }
+
+
+
+    executing_line_num++;
+    return;
+}
+
+void select_qmt(const cmd_args &arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
 
+    select_additional_args additional_args;
+
     for(int i = 0; i < arguments.select.additionals.size(); ++i){
-        std::cout << arguments.select.additionals[i] << std::endl;
+        std::stringstream ss(arguments.select.additionals[i]);
+        std::string cmd_type;
+        ss >> cmd_type;
+        
+        for (char& c : cmd_type) {
+            c = std::tolower(static_cast<unsigned char>(c));
+        }
+
+        if(cmd_type == "where"){
+            additional_args.where.tbl_name = arguments.select.tbl_name;
+        }
+
+        fill_in_additional_cmds[cmd_type](arguments.select.additionals[i], additional_args);
+        executing_line_num++;
     }
 
     if(!valid_pathname(db_path)){
@@ -45,7 +75,7 @@ void select_qmt(cmd_args arguments){
         attr_to_idx_mapping[schema[0][i]] = i;
     }
 
-    std::vector<std::vector<std::string>> table = read_in_table(table_path);
+    std::vector<std::vector<std::string>> table = read_in_table(table_path, additional_args);
 
     std::vector<std::vector<std::string>> result_table;
     std::vector<std::vector<std::string>> result_schema;
@@ -65,12 +95,13 @@ void select_qmt(cmd_args arguments){
     }
 
     display_in_memory_table(result_table, result_schema);
+
     executing_line_num++;
     return;
 
 }
 
-void insert_qmt(cmd_args arguments){
+void insert_qmt(const cmd_args &arguments){
     std::cout << "Running insert implementation, can fill out semantics later\n";
 
     if(!valid_pathname(db_path)){
@@ -106,7 +137,7 @@ void insert_qmt(cmd_args arguments){
     return;
 }
 
-void create_qmt(cmd_args arguments){
+void create_qmt(const cmd_args &arguments){
     std::cout << "Running create implementation, can fill out semantics later\n";
 
     if(!valid_pathname(db_path)){
@@ -133,7 +164,7 @@ void create_qmt(cmd_args arguments){
 
 }
 
-void add_col_qmt(cmd_args arguments){
+void add_col_qmt(const cmd_args &arguments){
     std::cout << "Running addcol implementation, can fill out semantics later\n";
 
     if(!valid_pathname(db_path)){
@@ -175,7 +206,7 @@ void add_col_qmt(cmd_args arguments){
 
 }
 
-void delete_qmt(cmd_args arguments){
+void delete_qmt(const cmd_args &arguments){
     std::cout << "Running delete implementation, can fill out semantics later\n";
 
     if(!valid_pathname(db_path)){

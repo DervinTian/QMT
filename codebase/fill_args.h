@@ -8,15 +8,17 @@
 
 #include "interpreter.h"
 
-bool check_string(std::string &value);
+bool check_string(const std::string &value);
 
-bool check_int(std::string &value);
+bool check_int(const std::string &value);
 
-bool check_bool(std::string &value);
+bool check_bool(const std::string &value);
 
-bool check_char(std::string &value);
+bool check_char(const std::string &value);
 
 void fill_select_args(const std::vector<std::string> &command, cmd_args &args);
+
+void fill_where_args(const std::string &command, select_additional_args &args);
 
 void fill_insert_args(const std::vector<std::string> &command, cmd_args &args);
 

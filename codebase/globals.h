@@ -16,7 +16,24 @@ enum cmd_type{
     NONE
 };
 
+enum cmp_object_type{
+    STRING,
+    INT,
+    BOOL,
+    CHAR
+};
+
+struct cmp_object{
+    std::string param_string;
+    int param_int;
+    bool param_bool;
+    char param_char;
+
+    cmp_object_type type;
+};
+
 struct where_args{
+    std::string tbl_name;
     std::string lhs_expression;
     std::string rhs_expression;
     std::string comparator;
@@ -64,8 +81,11 @@ struct cmd_args{
 };
 
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, cmd_args&)>> fill_in_cmd;
+extern std::unordered_map<std::string, std::function<void(const std::string&, select_additional_args&)>> fill_in_additional_cmds;
 extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;
-extern std::unordered_map<std::string, std::function<bool(std::string&)>> check_value_against_type;
+extern std::unordered_map<std::string, std::function<void(const select_additional_args&)>> additional_cmd_impls;
+extern std::unordered_map<std::string, std::function<bool(const std::string&)>> check_value_against_type;
+extern std::unordered_map<std::string, std::function<bool(const cmp_object&, const cmp_object&)>> comparators;
 extern std::string db_path;
 extern std::vector<std::string> in_memory_script;
 extern int executing_line_num;
@@ -74,5 +94,5 @@ bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
 
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
-std::vector<std::vector<std::string>> read_in_table(const std::string &table_path);
+std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const select_additional_args &constraints);
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema);

@@ -9,12 +9,14 @@
 
 #include "globals.h"
 
-void select_qmt(cmd_args arguments);
+void where_qmt(const select_additional_args &arguments);
 
-void insert_qmt(cmd_args arguments);
+void select_qmt(const cmd_args &arguments);
 
-void create_qmt(cmd_args arguments);
+void insert_qmt(const cmd_args &arguments);
 
-void add_col_qmt(cmd_args arguments);
+void create_qmt(const cmd_args &arguments);
 
-void delete_qmt(cmd_args arguments);
+void add_col_qmt(const cmd_args &arguments);
+
+void delete_qmt(const cmd_args &arguments);

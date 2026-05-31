@@ -7,6 +7,7 @@
 #include <cctype>
 
 #include "interpreter.h"
+#include "comp.h"
 #include "globals.h"
 #include "fill_args.h"
 #include "impls.h"
@@ -17,21 +18,26 @@ void init_function_map(){
     fill_in_cmd["create"] = fill_create_args;
     fill_in_cmd["addcol"] = fill_add_col_args;
     fill_in_cmd["delete"] = fill_delete_args;
-}
+    fill_in_additional_cmds["where"] = fill_where_args;
 
-void init_impl_map(){
     cmd_impls["select"] = select_qmt;
     cmd_impls["insert"] = insert_qmt;
     cmd_impls["create"] = create_qmt;
     cmd_impls["addcol"] = add_col_qmt;
     cmd_impls["delete"] = delete_qmt;
-}
+    additional_cmd_impls["where"] = where_qmt;
 
-void init_check_map(){
     check_value_against_type["string"] = check_string;
     check_value_against_type["int"] = check_int;
     check_value_against_type["bool"] = check_bool;
     check_value_against_type["char"] = check_char;
+
+    comparators["equal"] = comp_equal;
+    comparators["less"] = comp_less;
+    comparators["greater"] = comp_greater;
+    comparators["not_equal"] = comp_not_equal;
+    comparators["less_than_or_equal"] = comp_less_than_or_equal_to;
+    comparators["greater_than_or_equal"] = comp_greater_than_or_equal_to;
 }
 
 bool end_statement(std::string line){
@@ -51,7 +57,9 @@ bool run_interpreter(int starting_line, int end_line){
 
     std::vector<std::string> command;
     for(int i = starting_line; i < end_line + 1; ++i){
-        command.push_back(in_memory_script[i]);
+        if(in_memory_script[i].front() != '#'){
+            command.push_back(in_memory_script[i]);
+        }
     }
     
     // Have the constraint that each line represents a single of QMT code, can chain multiple lines into a command, like SQL
