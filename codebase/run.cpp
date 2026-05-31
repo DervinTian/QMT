@@ -34,21 +34,48 @@ int main(int argc, char* argv[]){
 
     std::string line; // hold each QMT line
     std::vector<std::string> command; // hold a chunk of QMT lines that represents a command, ends with ";"
-    int line_num = 1;
-    
+
     while(std::getline(file, line)){
-        if(line[0] == '#'){
+        in_memory_script.push_back(line);
+    }
+
+    int next_starting_line_num = 0;
+    int prev_starting_line_num = 0;
+    for(size_t i = 0; i < in_memory_script.size(); ++i){
+        
+        // if(i != executing_line_num){
+        //     i = executing_line_num;
+        // }
+
+        std::string script_line = in_memory_script[i];
+        if(script_line[0] == '#'){
             continue;
         }
-        command.push_back(line);
-        if(end_statement(line)){
-            if(!run_interpreter(command)){
-                std::cout << "Error in command ending at line " << line_num << std::endl;
-                    exit(1);
-                }
-            command.clear();
+        if(end_statement(script_line)){
+            next_starting_line_num = i;
+            prev_starting_line_num = next_starting_line_num + 1;
         }
-        line_num++;
+
+        if(prev_starting_line_num >= in_memory_script.size()){
+            break;
+        }
+
     }
+
+    // int line_num = 1;
+    // while(std::getline(file, line)){
+    //     if(line[0] == '#'){
+    //         continue;
+    //     }
+    //     command.push_back(line);
+    //     if(end_statement(line)){
+    //         if(!run_interpreter(command)){
+    //             std::cout << "Error in command ending at line " << line_num << std::endl;
+    //                 exit(1);
+    //             }
+    //         command.clear();
+    //     }
+    //     line_num++;
+    // }
 
 }

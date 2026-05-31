@@ -47,10 +47,15 @@ bool end_statement(std::string line){
     return false;
 }
 
-bool run_interpreter(std::vector<std::string> command){
+bool run_interpreter(int starting_line, int end_line){
+
+    std::vector<std::string> command;
+    for(int i = starting_line; i < end_line; ++i){
+        command.push_back(in_memory_script[i]);
+    }
     
     // Have the constraint that each line represents a single of QMT code, can chain multiple lines into a command, like SQL
-    for(size_t i = 0; i < command.size(); ++i){
+    for(int i = 0; i < command.size(); ){
         std::string cmd_type;
         cmd_args arguments;
 
@@ -85,6 +90,8 @@ bool run_interpreter(std::vector<std::string> command){
 
         // actually run the implemntation
         cmd_impls[cmd_type](arguments);
+
+        i = executing_line_num - starting_line;
     }
 
     return true;

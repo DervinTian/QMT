@@ -63,6 +63,7 @@ void select_qmt(cmd_args arguments){
     }
 
     display_in_memory_table(result_table, result_schema);
+    executing_line_num++;
     return;
 
 }
@@ -98,6 +99,9 @@ void insert_qmt(cmd_args arguments){
 
     tbl << '\n';
     tbl.close();
+    executing_line_num++;
+
+    return;
 }
 
 void create_qmt(cmd_args arguments){
@@ -121,6 +125,9 @@ void create_qmt(cmd_args arguments){
     }
 
     std::ofstream tbl(table_path);
+
+    executing_line_num++;
+    return;
 
 }
 
@@ -161,6 +168,9 @@ void add_col_qmt(cmd_args arguments){
 
     out_schema.close();
 
+    executing_line_num++;
+    return;
+
 }
 
 void delete_qmt(cmd_args arguments){
@@ -184,4 +194,7 @@ void delete_qmt(cmd_args arguments){
     }
 
     fs::remove(table_path);
+
+    executing_line_num++;
+    return;
 }
