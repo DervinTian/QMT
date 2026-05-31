@@ -50,7 +50,7 @@ bool end_statement(std::string line){
 bool run_interpreter(int starting_line, int end_line){
 
     std::vector<std::string> command;
-    for(int i = starting_line; i < end_line; ++i){
+    for(int i = starting_line; i < end_line + 1; ++i){
         command.push_back(in_memory_script[i]);
     }
     

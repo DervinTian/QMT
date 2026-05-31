@@ -8,7 +8,7 @@
 #include "interpreter.h"
 #include "globals.h"
 
-// compile command g++ -std=c++20 run.cpp interpreter.cpp globals.cpp impls.cpp fill_args.cpp -o run
+// compile command g++ -g -std=c++20 run.cpp interpreter.cpp globals.cpp impls.cpp fill_args.cpp -o run
 // usage cmd ./run [INSERT QMT FILENAME]
 
 int main(int argc, char* argv[]){
@@ -53,7 +53,13 @@ int main(int argc, char* argv[]){
         }
         if(end_statement(script_line)){
             next_starting_line_num = i;
+            if(!run_interpreter(prev_starting_line_num, i)){
+                std::cout << "Error in command ending at line " << i << std::endl;
+                exit(1);
+            }
+
             prev_starting_line_num = next_starting_line_num + 1;
+ 
         }
 
         if(prev_starting_line_num >= in_memory_script.size()){
@@ -61,21 +67,5 @@ int main(int argc, char* argv[]){
         }
 
     }
-
-    // int line_num = 1;
-    // while(std::getline(file, line)){
-    //     if(line[0] == '#'){
-    //         continue;
-    //     }
-    //     command.push_back(line);
-    //     if(end_statement(line)){
-    //         if(!run_interpreter(command)){
-    //             std::cout << "Error in command ending at line " << line_num << std::endl;
-    //                 exit(1);
-    //             }
-    //         command.clear();
-    //     }
-    //     line_num++;
-    // }
 
 }
