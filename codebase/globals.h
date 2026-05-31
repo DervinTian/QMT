@@ -17,8 +17,8 @@ enum cmd_type{
 };
 
 struct select_args{
+    std::string tbl_name;
     std::vector<std::string> sel_columns;
-    std::string data_dest;
     std::vector<std::string> additionals;
 };
 
@@ -58,3 +58,7 @@ extern std::string db_path;
 
 bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
+
+std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
+std::vector<std::vector<std::string>> read_in_table(const std::string &table_path);
+void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema);

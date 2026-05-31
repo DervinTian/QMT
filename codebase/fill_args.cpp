@@ -50,6 +50,59 @@ bool check_char(std::string &value){
 void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Select function added to the function map, can fill out args for select statements" << std::endl;
     args.cmd = SELECT;
+
+    bool table = false;
+
+    for(size_t i = 0; i < command.size(); ++i){
+        std::vector<std::string> line_content;
+        std::string line = command[i];
+
+        bool go_time = false;
+
+        if(line.size() == 0){
+            continue;
+        }
+
+        if(i > 0){
+            args.select.additionals.push_back(line);
+        }
+
+        std::stringstream ss(line);
+        std::string tmp;
+
+        while(ss >> tmp){
+            if(tmp == "SELECT"){
+                go_time = true;
+                continue;
+            }
+
+            if(go_time){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.select.sel_columns.push_back(attr);
+                        continue;
+                    }
+
+                    if(tmp[j] == ','){
+                        if(!table){
+                            args.select.tbl_name = attr;
+                            table = true;
+                        }
+                        else{
+                            args.select.sel_columns.push_back(attr);
+                        }
+                    }
+                    else{
+                        attr += tmp[j];
+                    }
+                }
+            }
+        }
+    }
 }
 
 void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
@@ -68,6 +121,8 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
         std::vector<std::string> line_content;
         std::string line = command[i];
 
+        bool go_time = false;
+
         if(line.size() == 0){
             continue;
         }
@@ -77,101 +132,80 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
 
         while(ss >> tmp){
             if(tmp == "INSERT"){
+                go_time = true;
                 continue;
             }
 
-            std::string attr;
-            for(size_t j = 0; j < tmp.size(); ++j){
-                char_idx++;
+            if(go_time){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    char_idx++;
 
-                if(tmp[j] == '('){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+
+                    if(tmp[j] == ','){
+                        args.insert.tbl_name = attr;
+
+                        if(!valid_table(args.insert.tbl_name)){
+                            std::cout << "Invalid tablename (tablename is: " << args.insert.tbl_name << ") detected.\n";
+                            exit(2);
+                        }
+                        
+                        std::string schema_path = db_path + "/schemas/" + args.insert.tbl_name;
+
+                        schema_types = read_schema(schema_path)[1];
+
+                        table = 1;
+                        attr.clear();
+                        break;
+                    }
+                    else{
+                        attr += tmp[j];
+                    }
+
+                }
+
+                if(table == 1){
+                    char_idx++; // helps us get out of the comma
+                    break;
+                }
+            }
+
+        }
+
+        if(go_time){
+            bool inside_string = false;
+            std::string val;
+            for(size_t j = char_idx; j < line.size(); ++j){
+
+                if(line[j] == ' ' && !inside_string){
                     continue;
                 }
 
-                if(tmp[j] == ','){
-                    args.insert.tbl_name = attr;
+                if(line[j] == '\"'){
+                    inside_string = true;
+                }
 
-                    if(!valid_table(args.insert.tbl_name)){
-                        std::cout << "Invalid tablename (tablename is: " << args.insert.tbl_name << ") detected.\n";
-                        exit(2);
-                    }
-                    
-                    std::string schema_path = db_path + "/schemas/" + args.insert.tbl_name;
-                    std::ifstream schema_file(schema_path);
-
-                    if(!fs::exists(schema_path)){
-                        std::cout << "Schema for " << args.insert.tbl_name << " doesn't exist!\n";
-                        exit(3);
+                if(line[j] == ',' || line[j] == ')'){
+                    std::string actual_type = schema_types[value_idx];
+                    if(!check_value_against_type[actual_type](val)){
+                        std::cout << "Wrong type being, expected " << actual_type << ", inserted into the column!\n";
+                        exit(7);
                     }
 
-                    std::string schema_line;
-                    while(std::getline(schema_file, schema_line));
-                    schema_file.close();
-
-                    std::stringstream schema_ss(schema_line);
-                    std::string token;
-                    
-                    while(std::getline(schema_ss, token, ',')){
-                        if(token.size() > 0){
-                            schema.push_back(token);
-                        }
-                    }
-                    
-                    for(size_t k = 0; k < schema.size(); ++k){
-                        std::stringstream temp_ss(schema[k]);
-
-                        std::string first, second;
-
-                        std::getline(temp_ss, first, '_');
-                        std::getline(temp_ss, second, '_');
-
-                        schema_types.push_back(second);
-                    }
-
-                    table = 1;
-                    attr.clear();
-                    break;
+                    args.insert.values.push_back(val);
+                    value_idx++;
+                    val.clear();
+                    inside_string = false;
                 }
                 else{
-                    attr += tmp[j];
+                    val += line[j];
                 }
-
-            }
-
-            if(table == 1){
-                char_idx++; // helps us get out of the comma
-                break;
             }
         }
 
-        bool inside_string = false;
-        std::string val;
-        for(size_t j = char_idx; j < line.size(); ++j){
-
-            if(line[j] == ' ' && !inside_string){
-                continue;
-            }
-
-            if(line[j] == '\"'){
-                inside_string = true;
-            }
-
-            if(line[j] == ',' || line[j] == ')'){
-                std::string actual_type = schema_types[value_idx];
-                if(!check_value_against_type[actual_type](val)){
-                    std::cout << "Wrong type being, expected " << actual_type << ", inserted into the column!\n";
-                    exit(7);
-                }
-
-                args.insert.values.push_back(val);
-                value_idx++;
-                val.clear();
-                inside_string = false;
-            }
-            else{
-                val += line[j];
-            }
-        }
     }
 }
 
@@ -228,44 +262,50 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args){
             continue;
         }
 
+        bool go_time = false;
+
         std::stringstream ss(line);
         std::string tmp;
 
         while(ss >> tmp){
             if(tmp == "ADDCOL"){
+                go_time = true;
                 continue;
             }
 
-            std::string attr;
-            for(size_t j = 0; j < tmp.size(); ++j){
-                if(tmp[j] == '('){
-                    continue;
-                }
-                
-                if(tmp[j] == ')'){
-                    args.add_cols.column_name = attr;
-                    attr.clear();
-                    break;
-                }
+            if(go_time){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    
+                    if(tmp[j] == ')'){
+                        args.add_cols.column_name = attr;
+                        attr.clear();
+                        break;
+                    }
 
-                if(tmp[j] == ','){
-                    if(mode == 0){
-                        args.add_cols.tbl_name = attr;
-                        mode = 1;
-                        continue;
+                    if(tmp[j] == ','){
+                        if(mode == 0){
+                            args.add_cols.tbl_name = attr;
+                            mode = 1;
+                            continue;
+                        }
+                        else if(mode == 1){
+                            args.add_cols.type = attr;
+                            mode = 2;
+                            continue;
+                        }
+                        attr.clear();
                     }
-                    else if(mode == 1){
-                        args.add_cols.type = attr;
-                        mode = 2;
-                        continue;
+                    else{
+                        attr += tmp[j];
                     }
-                    attr.clear();
+                    
                 }
-                else{
-                    attr += tmp[j];
-                }
-                
             }
+            
         }
     }
 
