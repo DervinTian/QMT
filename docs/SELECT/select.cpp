@@ -50,9 +50,20 @@ std::vector<std::vector<std::string>> read_schema(const std::string &schema_path
     return result;
 }
 
-std::vector<std::vector<std::string>> read_in_table(const std::string &table_path){
+std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const select_additional_args &constraints){
 
+    // Structure of the in-memory table will be defined here
+    // Made up of a vector of vectors
+    // Outer vectors represent a type
+    // Inner vectors hold the values for that type
+    // Values align across all the vectors
     std::vector<std::vector<std::string>> result;
+
+    bool where_constraint = false;
+
+    if(constraints.where.tbl_name.size() > 0){
+        where_constraint = true;
+    }
 
     size_t pos = table_path.rfind('/');
     std::string tbl_name = table_path.substr(pos + 1);
@@ -66,7 +77,10 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
 
     std::string schema_path = db_path + "/schemas/" + tbl_name;
 
-    int num_cols = (int)read_schema(schema_path)[0].size();
+    std::vector<std::vector<std::string>> schema = read_schema(schema_path);
+    std::vector<std::string>& column_names = schema[0];
+    std::vector<std::string>& column_types = schema[1];
+    int num_cols = (int)column_names.size();
 
     for(int i = 0; i < num_cols; ++i){
         std::vector<std::string> temp;
@@ -74,15 +88,133 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
     }
 
     int curr_attribute_counter = 0;
+    int curr_col_idx = 0;
     std::string table_line;
     while(std::getline(table_file, table_line)){
 
         std::stringstream table_ss(table_line);
         std::string table_val;
+        std::string curr_col;
+        std::string curr_col_type;
+        bool good_to_push = true;
+        int skipped_checks = 0;
+        cmp_object rhs_val;
+        cmp_object lhs_val;
+        std::string comparator;
+
+        std::string cmp_type;
+        std::vector<std::string> buffer; // a temporary spot to hold the column values
 
         while(std::getline(table_ss, table_val, ',')){
-            result[curr_attribute_counter].push_back(table_val);
+
+            curr_col = column_names[curr_attribute_counter];
+            curr_col_type = column_types[curr_attribute_counter];
+            buffer.push_back(table_val);
+            // result[curr_attribute_counter].push_back(table_val);
             curr_attribute_counter = (curr_attribute_counter + 1) % num_cols;
+            
+            if(where_constraint){
+                // for now just assuming that the left-hand-side will represent the column name, no other operations for now
+                if(curr_col == constraints.where.lhs_expression){ // check to make sure that we are looking at the right column
+                    if(check_string(constraints.where.rhs_expression)){
+                        cmp_type = "string";
+                        rhs_val.param_string = constraints.where.rhs_expression.substr(1, constraints.where.rhs_expression.size() - 2);
+                        rhs_val.type = STRING;
+                    }
+                    else if(check_char(constraints.where.rhs_expression)){
+                        cmp_type = "char";
+                        rhs_val.param_char = constraints.where.rhs_expression[1];
+                        rhs_val.type = CHAR;
+                    }
+                    else if(check_bool(constraints.where.rhs_expression)){
+                        cmp_type = "bool";
+                        if(constraints.where.rhs_expression == "true"){
+                            rhs_val.param_bool = true;
+                        }
+                        else{
+                            rhs_val.param_bool = false;
+                        }
+                        rhs_val.type = BOOL;
+                    }
+                    else if(check_int(constraints.where.rhs_expression)){
+                        cmp_type = "int";
+                        rhs_val.param_int = std::stoi(constraints.where.rhs_expression);
+                        rhs_val.type = INT;
+                    }
+                    else{
+                        std::cout << "Unknown type error: " << constraints.where.rhs_expression << " does not fall under any of the accepted types!\n";
+                        exit(8);
+                    }
+
+                    if(curr_col_type == cmp_type){ // Check to make sure that the two objects are comparable
+                        if(curr_col_type == "string"){
+                            table_val = table_val.substr(1, table_val.size() - 2);
+                            lhs_val.param_string = table_val;
+                            lhs_val.type = STRING;
+                        }
+                        else if(curr_col_type == "char"){
+                            lhs_val.param_char = table_val[1];
+                            lhs_val.type = CHAR;
+                        }
+                        else if(curr_col_type == "bool"){
+                            if(table_val == "true"){
+                                lhs_val.param_bool = true;
+                            }
+                            else{
+                                lhs_val.param_bool = false;
+                            }
+                            lhs_val.type = BOOL;
+                        }
+                        else if(curr_col_type == "int"){
+                            lhs_val.param_int = std::stoi(table_val);
+                            lhs_val.type = INT;
+                        }
+                        else{
+                            std::cout << "Unknown type in the table? Gotta go check that one for this value: " << table_val << std::endl;
+                            exit(67);
+                        }
+
+                        if(constraints.where.comparator == "EQUAL" || constraints.where.comparator == "="){
+                            comparator = "equal";
+                        }
+                        else if(constraints.where.comparator == "GREATER" || constraints.where.comparator == ">"){
+                            comparator = "greater";
+                        }
+                        else if(constraints.where.comparator == "LESS" || constraints.where.comparator == "<"){
+                            comparator = "less";
+                        }
+                        else if(constraints.where.comparator == "NOT_EQUAL" || constraints.where.comparator == "!="){
+                            comparator = "not_equal";
+                        }
+                        else if(constraints.where.comparator == "LESS_THAN_OR_EQUAL" || constraints.where.comparator == "<="){
+                            comparator = "less_than_or_equal";
+                        }
+                        else if(constraints.where.comparator == "GREATER_THAN_OR_EQUAL" || constraints.where.comparator == ">="){
+                            comparator = "greater_than_or_equal";
+                        }
+                        else{
+                            std::cout << "Unknown comparator: " << constraints.where.comparator << std::endl;
+                            exit(9);
+                        }
+
+                        good_to_push = comparators[comparator](lhs_val, rhs_val) && good_to_push;
+
+                    }
+                    else{
+                        skipped_checks++;
+                    }
+                }
+                else{
+                    skipped_checks++;
+                }
+            }
+
+        }
+
+        if(good_to_push && skipped_checks > 0){
+            for(size_t i = 0; i < buffer.size(); ++i){
+                result[i].push_back(buffer[i]);
+            }
         }
 
     }
