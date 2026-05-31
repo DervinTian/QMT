@@ -8,3 +8,5 @@ Each folder has a separate README.md file that shows how the QMT statement shoul
 - CREATE
 - ADDCOL
 - INSERT
+- DELETE
+- SELECT
