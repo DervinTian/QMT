@@ -67,6 +67,7 @@ extern std::unordered_map<std::string, std::function<void(const std::vector<std:
 extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;
 extern std::unordered_map<std::string, std::function<bool(std::string&)>> check_value_against_type;
 extern std::string db_path;
+extern std::vector<std::string> in_memory_script;
 extern int executing_line_num;
 
 bool valid_table(std::string table);

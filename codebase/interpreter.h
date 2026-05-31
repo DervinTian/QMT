@@ -17,5 +17,5 @@ void init_check_map();
 
 bool end_statement(std::string line);
 
-bool run_interpreter(std::vector<std::string> command);
+bool run_interpreter(int starting_line, int end_line);
 

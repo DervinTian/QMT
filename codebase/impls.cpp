@@ -16,7 +16,9 @@ namespace fs = std::filesystem;
 void select_qmt(cmd_args arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
 
-    std::cout << arguments.select.additionals[0] << std::endl;
+    for(int i = 0; i < arguments.select.additionals.size(); ++i){
+        std::cout << arguments.select.additionals[i] << std::endl;
+    }
 
     if(!valid_pathname(db_path)){
         std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
@@ -63,6 +65,7 @@ void select_qmt(cmd_args arguments){
     }
 
     display_in_memory_table(result_table, result_schema);
+    executing_line_num++;
     return;
 
 }
@@ -98,6 +101,9 @@ void insert_qmt(cmd_args arguments){
 
     tbl << '\n';
     tbl.close();
+
+    executing_line_num++;
+    return;
 }
 
 void create_qmt(cmd_args arguments){
@@ -121,6 +127,9 @@ void create_qmt(cmd_args arguments){
     }
 
     std::ofstream tbl(table_path);
+
+    executing_line_num++;
+    return;
 
 }
 
@@ -161,6 +170,9 @@ void add_col_qmt(cmd_args arguments){
 
     out_schema.close();
 
+    executing_line_num++;
+    return;
+
 }
 
 void delete_qmt(cmd_args arguments){
@@ -177,6 +189,7 @@ void delete_qmt(cmd_args arguments){
     }
 
     std::string table_path = db_path + "/" + arguments.deleted.tbl_name;
+    std::string schema_path = db_path + "/schemas/" + arguments.deleted.tbl_name;
 
     if(!fs::exists(table_path)){
         std::cout << "Table " << arguments.deleted.tbl_name  << " doesn't exist!\n";
@@ -184,4 +197,11 @@ void delete_qmt(cmd_args arguments){
     }
 
     fs::remove(table_path);
+
+    if(fs::exists(schema_path)){
+        fs::remove(schema_path);
+    }
+
+    executing_line_num++;
+    return;
 }
