@@ -13,26 +13,18 @@
 
 namespace fs = std::filesystem;
 
-void where_qmt(const select_additional_args &arguments){
-    std::cout << "Running where implementation, can fill out semantics later\n";
-
-    std::string schema_path = db_path + "/schemas/" + arguments.where.tbl_name;
-
-    if(!fs::exists(schema_path)){
-        return;
-    }
-
-
-
-    executing_line_num++;
-    return;
-}
-
+/*
+Implementation for the SELECT function
+Arguments:
+    - arguments: contains tbl_name, selection columns, and additional data structures for additional constraints
+*/
 void select_qmt(const cmd_args &arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
 
-    select_additional_args additional_args;
+    std::vector<select_additional_args> additional_args;
+    select_additional_args add_args;
 
+    // For any additional lines after the select statement, such as WHERE
     for(int i = 0; i < arguments.select.additionals.size(); ++i){
         std::stringstream ss(arguments.select.additionals[i]);
         std::string cmd_type;
@@ -42,14 +34,17 @@ void select_qmt(const cmd_args &arguments){
             c = std::tolower(static_cast<unsigned char>(c));
         }
 
+        // Fill in the arguments for the specified keyword
         if(cmd_type == "where"){
-            additional_args.where.tbl_name = arguments.select.tbl_name;
+            add_args.where.tbl_name = arguments.select.tbl_name;
         }
 
-        fill_in_additional_cmds[cmd_type](arguments.select.additionals[i], additional_args);
+        fill_in_additional_cmds[cmd_type](arguments.select.additionals[i], add_args);
+        additional_args.push_back(add_args);
         executing_line_num++;
     }
 
+    // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
         std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
         exit(1);
@@ -69,12 +64,14 @@ void select_qmt(const cmd_args &arguments){
     }
 
     std::vector<std::vector<std::string>> schema = read_schema(schema_path);
-    std::unordered_map<std::string, int> attr_to_idx_mapping;
 
+    // Create a mapping to find which attribute goes to which column index
+    std::unordered_map<std::string, int> attr_to_idx_mapping;
     for(size_t i = 0; i < schema[0].size(); ++i){
         attr_to_idx_mapping[schema[0][i]] = i;
     }
 
+    // Read in the table into memory with the given constraints, to try and reduce on the memory load
     std::vector<std::vector<std::string>> table = read_in_table(table_path, additional_args);
 
     std::vector<std::vector<std::string>> result_table;
@@ -83,27 +80,36 @@ void select_qmt(const cmd_args &arguments){
     result_schema.push_back(std::vector<std::string>{});
     result_schema.push_back(std::vector<std::string>{});
 
+    // If they select all columns, then just display everything
     if(arguments.select.sel_columns.size() == 1 && arguments.select.sel_columns[0] == "*"){
         display_in_memory_table(table, schema);
         return;
     }
 
+    // Otherwise, just show the columns that were specified
     for(size_t i = 0; i < arguments.select.sel_columns.size(); ++i){
         result_table.push_back(table[attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
         result_schema[0].push_back(schema[0][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
         result_schema[1].push_back(schema[1][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);;
     }
 
+    // Print it out
     display_in_memory_table(result_table, result_schema);
 
-    executing_line_num++;
+    executing_line_num++; // update the execution line number
     return;
 
 }
 
+/*
+Implementation for the INSERT function
+Arguments:
+    - arguments: contains tbl_name, and values to be inserted
+*/
 void insert_qmt(const cmd_args &arguments){
     std::cout << "Running insert implementation, can fill out semantics later\n";
 
+    // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
         std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
         exit(1);
@@ -121,6 +127,7 @@ void insert_qmt(const cmd_args &arguments){
         exit(3);
     }
 
+    // Go through the values and create a comma-separated line for the values and insert into the table file
     std::ofstream tbl(table_path, std::ios::app);
 
     for(size_t i = 0; i < arguments.insert.values.size(); ++i){
@@ -133,13 +140,19 @@ void insert_qmt(const cmd_args &arguments){
     tbl << '\n';
     tbl.close();
 
-    executing_line_num++;
+    executing_line_num++; // update the execution line number
     return;
 }
 
+/*
+Implementation for the CREATE function
+Arguments:
+    - arguments: contains tbl_name to be created
+*/
 void create_qmt(const cmd_args &arguments){
     std::cout << "Running create implementation, can fill out semantics later\n";
 
+    // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
         std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
         exit(1);
@@ -149,7 +162,7 @@ void create_qmt(const cmd_args &arguments){
         std::cout << "Invalid tablename (tablename is: " << arguments.create.tbl_name << ") detected.\n";
         exit(2);
     }
-
+    
     std::string table_path = db_path + "/" + arguments.create.tbl_name;
 
     if(fs::exists(table_path)){
@@ -157,16 +170,23 @@ void create_qmt(const cmd_args &arguments){
         exit(3);
     }
 
+    // Create a blank table in the database with the given table name
     std::ofstream tbl(table_path);
 
-    executing_line_num++;
+    executing_line_num++; // update the execution line number
     return;
 
 }
 
+/*
+Implementation for the ADDCOL function
+Arguments:
+    - arguments: contains tbl_name, column name, and the column type to be inserted
+*/
 void add_col_qmt(const cmd_args &arguments){
     std::cout << "Running addcol implementation, can fill out semantics later\n";
 
+    // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
         std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
         exit(1);
@@ -185,10 +205,12 @@ void add_col_qmt(const cmd_args &arguments){
         exit(3);
     }
 
+    // Create a schema if there doesn't exist one already
     if(!fs::exists(schema_path)){
         std::ofstream schema(schema_path);
     }
 
+    // construct the comma-delimited value string to be inserted into the database schema
     std::string line;
     std::ifstream schema(schema_path);
     while(std::getline(schema, line));
@@ -201,14 +223,20 @@ void add_col_qmt(const cmd_args &arguments){
 
     out_schema.close();
 
-    executing_line_num++;
+    executing_line_num++; // update the execution line number
     return;
 
 }
 
+/*
+Implementation for the DELETE function
+Arguments:
+    - arguments: contains tbl_name to be deleted
+*/
 void delete_qmt(const cmd_args &arguments){
     std::cout << "Running delete implementation, can fill out semantics later\n";
 
+    // Do error checking to ensure that the database and the tables are valid paths
     if(!valid_pathname(db_path)){
         std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
         exit(1);
@@ -227,12 +255,13 @@ void delete_qmt(const cmd_args &arguments){
         exit(3);
     }
 
+    // If everything is valid, remove the schema and the data table from the database
     fs::remove(table_path);
 
     if(fs::exists(schema_path)){
         fs::remove(schema_path);
     }
 
-    executing_line_num++;
+    executing_line_num++; // update the execution line number
     return;
 }

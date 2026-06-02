@@ -13,6 +13,11 @@
 
 namespace fs = std::filesystem;
 
+/*
+Custom function in order to check whether or not the value read in is of the STRING type, formatted with, ex: "String".
+Arguments:
+    - value: Represents the read in value, always going to be read in as C++ string type, but could be of different type in the QMT table schema 
+*/
 bool check_string(const std::string &value){
     bool return_val = false;
     if(value.front() == '\"' && value.back() == '\"'){
@@ -21,6 +26,11 @@ bool check_string(const std::string &value){
     return return_val;
 }
 
+/*
+Custom function in order to check whether or not the value read in is of the INT type, formatted with, ex: 18.
+Arguments:
+    - value: Represents the read in value, always going to be read in as C++ string type, but could be of different type in the QMT table schema 
+*/
 bool check_int(const std::string &value){
     bool all_numeric = true;
     for(size_t i = 0; i < value.size(); ++i){
@@ -32,6 +42,11 @@ bool check_int(const std::string &value){
     return all_numeric;
 }
 
+/*
+Custom function in order to check whether or not the value read in is of the BOOL type, formatted with, ex: true.
+Arguments:
+    - value: Represents the read in value, always going to be read in as C++ string type, but could be of different type in the QMT table schema 
+*/
 bool check_bool(const std::string &value){
     if(value == "True" || value == "False"){
         return true;
@@ -39,6 +54,11 @@ bool check_bool(const std::string &value){
     return false;
 }
 
+/*
+Custom function in order to check whether or not the value read in is of the CHAR type, formatted with, ex: 'c'.
+Arguments:
+    - value: Represents the read in value, always going to be read in as C++ string type, but could be of different type in the QMT table schema 
+*/
 bool check_char(const std::string &value){
     bool return_val = false;
     if(value.front() == '\'' && value.back() == '\''){
@@ -47,18 +67,26 @@ bool check_char(const std::string &value){
     return return_val;
 }
 
+/*
+Function in order to fill in the arguments for SELECT to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
 void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Select function added to the function map, can fill out args for select statements" << std::endl;
     args.cmd = SELECT;
 
     bool table = false;
 
+    // go through all the lines in the command, helps for future context like WHERE constraints etc.
     for(size_t i = 0; i < command.size(); ++i){
         std::vector<std::string> line_content;
         std::string line = command[i];
 
         bool go_time = false;
 
+        // skip if there is an empty command
         if(line.size() == 0){
             continue;
         }
@@ -70,12 +98,14 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
         std::stringstream ss(line);
         std::string tmp;
 
+        // Read in each white-space terminated string into the tmp string
         while(ss >> tmp){
-            if(tmp == "SELECT"){
+            if(tmp == "SELECT"){ // set everything to go if we are executing the SELECT statement
                 go_time = true;
                 continue;
             }
 
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
             if(go_time){
                 std::string attr;
                 for(size_t j = 0; j < tmp.size(); ++j){
@@ -105,6 +135,12 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
     }
 }
 
+/*
+Function in order to fill in the arguments for WHERE to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
 void fill_where_args(const std::string &command, select_additional_args &args){
     std::cout << "Where function added to the function map, can fill out args for where statements" << std::endl;
     std::stringstream ss(command);
@@ -119,6 +155,7 @@ void fill_where_args(const std::string &command, select_additional_args &args){
             continue;
         }
 
+        // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
         if(go_time){
             std::string attr;
             for(size_t j = 0; j < tmp.size(); ++j){
@@ -147,6 +184,12 @@ void fill_where_args(const std::string &command, select_additional_args &args){
     }
 }
 
+/*
+Function in order to fill in the arguments for INSERT to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
 void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Insert function added to the function map, can fill out args for insert statements" << std::endl;
     args.cmd = INSERT;
@@ -178,6 +221,7 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                 continue;
             }
 
+            // If we are good to go, then go through the parenthesis, and read the table to find the schema first
             if(go_time){
                 std::string attr;
                 for(size_t j = 0; j < tmp.size(); ++j){
@@ -217,6 +261,7 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
 
         }
 
+        // For each comma delimited value assign it to it's appropriate field in the arguments and ensure that it is of the proper type
         if(go_time){
             bool inside_string = false;
             std::string val;
@@ -251,6 +296,12 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
     }
 }
 
+/*
+Function in order to fill in the arguments for CREATE to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
 void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Create function added to the function map, can fill out args for create statements" << std::endl;
     args.cmd = CREATE;
@@ -275,6 +326,7 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
                 continue;
             }
             
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
             if(time_go){
                 for(size_t j = 0; j < tmp.size(); ++j){
                     if(tmp[j] == '('){
@@ -292,6 +344,12 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
     }
 }
 
+/*
+Function in order to fill in the arguments for ADDCOL to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
 void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Addcol function added to the function map, can fill out args for addcol statements" << std::endl;
     args.cmd = ADD_COL;
@@ -315,6 +373,7 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args){
                 continue;
             }
 
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
             if(go_time){
                 std::string attr;
                 for(size_t j = 0; j < tmp.size(); ++j){
@@ -349,6 +408,22 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args){
 
 }
 
+/*
+Function in order to fill in the arguments UPDATE to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
+void fill_update_args(const std::vector<std::string> &command, cmd_args &args){
+
+}
+
+/*
+Function in order to fill in the arguments DELETE to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
 void fill_delete_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Delete function added to the function map, can fill out args for delete statements" << std::endl;
     args.cmd = DELETE;
@@ -373,6 +448,7 @@ void fill_delete_args(const std::vector<std::string> &command, cmd_args &args){
                 continue;
             }
             
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
             if(time_go){
                 for(size_t j = 0; j < tmp.size(); ++j){
                     if(tmp[j] == '('){

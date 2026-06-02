@@ -9,8 +9,6 @@
 
 #include "globals.h"
 
-void where_qmt(const select_additional_args &arguments);
-
 void select_qmt(const cmd_args &arguments);
 
 void insert_qmt(const cmd_args &arguments);

@@ -25,7 +25,6 @@ void init_function_map(){
     cmd_impls["create"] = create_qmt;
     cmd_impls["addcol"] = add_col_qmt;
     cmd_impls["delete"] = delete_qmt;
-    additional_cmd_impls["where"] = where_qmt;
 
     check_value_against_type["string"] = check_string;
     check_value_against_type["int"] = check_int;

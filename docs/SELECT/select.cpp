@@ -1,3 +1,13 @@
+/*
+Function to read in the schema into memory.
+Arguments:
+    - schema_path: path of the schema to be read in
+
+Return:
+    - 2D vector containig the results in vectors containing two inner vectors of strings
+    - Index 0 is the column names
+    - Index 1 is the column types
+*/
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path){
 
     std::vector<std::vector<std::string>> result;
@@ -50,7 +60,17 @@ std::vector<std::vector<std::string>> read_schema(const std::string &schema_path
     return result;
 }
 
-std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const select_additional_args &constraints){
+/*
+Function to load the table into memory with the given where constraints.
+Arguments:
+    - table_path: the path of the table to read in
+    - constraints: the constraint(s) to be placed on the table
+
+Return:
+    - 2D vector containing the table structure
+    - Is a vector that contains vectors of column values
+*/
+std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const std::vector<select_additional_args> &constraints){
 
     // Structure of the in-memory table will be defined here
     // Made up of a vector of vectors
@@ -58,12 +78,6 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
     // Inner vectors hold the values for that type
     // Values align across all the vectors
     std::vector<std::vector<std::string>> result;
-
-    bool where_constraint = false;
-
-    if(constraints.where.tbl_name.size() > 0){
-        where_constraint = true;
-    }
 
     size_t pos = table_path.rfind('/');
     std::string tbl_name = table_path.substr(pos + 1);
@@ -96,7 +110,10 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
         std::string table_val;
         std::string curr_col;
         std::string curr_col_type;
-        bool good_to_push = true;
+
+        cmp_return_type good_to_push;
+        bool push = true;
+        
         int skipped_checks = 0;
         cmp_object rhs_val;
         cmp_object lhs_val;
@@ -112,106 +129,28 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
             buffer.push_back(table_val);
             // result[curr_attribute_counter].push_back(table_val);
             curr_attribute_counter = (curr_attribute_counter + 1) % num_cols;
-            
-            if(where_constraint){
-                // for now just assuming that the left-hand-side will represent the column name, no other operations for now
-                if(curr_col == constraints.where.lhs_expression){ // check to make sure that we are looking at the right column
-                    if(check_string(constraints.where.rhs_expression)){
-                        cmp_type = "string";
-                        rhs_val.param_string = constraints.where.rhs_expression.substr(1, constraints.where.rhs_expression.size() - 2);
-                        rhs_val.type = STRING;
-                    }
-                    else if(check_char(constraints.where.rhs_expression)){
-                        cmp_type = "char";
-                        rhs_val.param_char = constraints.where.rhs_expression[1];
-                        rhs_val.type = CHAR;
-                    }
-                    else if(check_bool(constraints.where.rhs_expression)){
-                        cmp_type = "bool";
-                        if(constraints.where.rhs_expression == "true"){
-                            rhs_val.param_bool = true;
-                        }
-                        else{
-                            rhs_val.param_bool = false;
-                        }
-                        rhs_val.type = BOOL;
-                    }
-                    else if(check_int(constraints.where.rhs_expression)){
-                        cmp_type = "int";
-                        rhs_val.param_int = std::stoi(constraints.where.rhs_expression);
-                        rhs_val.type = INT;
-                    }
-                    else{
-                        std::cout << "Unknown type error: " << constraints.where.rhs_expression << " does not fall under any of the accepted types!\n";
-                        exit(8);
-                    }
 
-                    if(curr_col_type == cmp_type){ // Check to make sure that the two objects are comparable
-                        if(curr_col_type == "string"){
-                            table_val = table_val.substr(1, table_val.size() - 2);
-                            lhs_val.param_string = table_val;
-                            lhs_val.type = STRING;
-                        }
-                        else if(curr_col_type == "char"){
-                            lhs_val.param_char = table_val[1];
-                            lhs_val.type = CHAR;
-                        }
-                        else if(curr_col_type == "bool"){
-                            if(table_val == "true"){
-                                lhs_val.param_bool = true;
-                            }
-                            else{
-                                lhs_val.param_bool = false;
-                            }
-                            lhs_val.type = BOOL;
-                        }
-                        else if(curr_col_type == "int"){
-                            lhs_val.param_int = std::stoi(table_val);
-                            lhs_val.type = INT;
-                        }
-                        else{
-                            std::cout << "Unknown type in the table? Gotta go check that one for this value: " << table_val << std::endl;
-                            exit(67);
-                        }
+            for(size_t x = 0; x < constraints.size(); ++x){
+                select_additional_args constraint = constraints[x]; // update to deal with all the constraints, not just one at a time
 
-                        if(constraints.where.comparator == "EQUAL" || constraints.where.comparator == "="){
-                            comparator = "equal";
-                        }
-                        else if(constraints.where.comparator == "GREATER" || constraints.where.comparator == ">"){
-                            comparator = "greater";
-                        }
-                        else if(constraints.where.comparator == "LESS" || constraints.where.comparator == "<"){
-                            comparator = "less";
-                        }
-                        else if(constraints.where.comparator == "NOT_EQUAL" || constraints.where.comparator == "!="){
-                            comparator = "not_equal";
-                        }
-                        else if(constraints.where.comparator == "LESS_THAN_OR_EQUAL" || constraints.where.comparator == "<="){
-                            comparator = "less_than_or_equal";
-                        }
-                        else if(constraints.where.comparator == "GREATER_THAN_OR_EQUAL" || constraints.where.comparator == ">="){
-                            comparator = "greater_than_or_equal";
-                        }
-                        else{
-                            std::cout << "Unknown comparator: " << constraints.where.comparator << std::endl;
-                            exit(9);
-                        }
+                bool where_constraint = false;
 
-                        good_to_push = comparators[comparator](lhs_val, rhs_val) && good_to_push;
-
-                    }
-                    else{
-                        skipped_checks++;
-                    }
+                if(constraint.where.tbl_name.size() > 0){
+                    where_constraint = true;
                 }
-                else{
-                    skipped_checks++;
+                
+                if(where_constraint){
+                    good_to_push = where_qmt(curr_col, curr_col_type, table_val, constraint);
+                    
+                    if(good_to_push == FALSE){
+                        push = false;
+                    }
                 }
             }
 
         }
 
-        if(good_to_push && skipped_checks > 0){
+        if(push){
             for(size_t i = 0; i < buffer.size(); ++i){
                 result[i].push_back(buffer[i]);
             }
@@ -224,6 +163,12 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
 
 }
 
+/*
+Function to display the table.
+Arguments:
+    - table: the in memory table to be printed out 
+    - schema: the in memory schema to print out column headers
+*/
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema){
 
     std::vector<int> column_widths;
@@ -252,9 +197,38 @@ void display_in_memory_table(const std::vector<std::vector<std::string>> &table,
 
 }
 
-void select_qmt(cmd_args arguments){
+/*
+Implementation for the SELECT function
+Arguments:
+    - arguments: contains tbl_name, selection columns, and additional data structures for additional constraints
+*/
+void select_qmt(const cmd_args &arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
 
+    std::vector<select_additional_args> additional_args;
+    select_additional_args add_args;
+
+    // For any additional lines after the select statement, such as WHERE
+    for(int i = 0; i < arguments.select.additionals.size(); ++i){
+        std::stringstream ss(arguments.select.additionals[i]);
+        std::string cmd_type;
+        ss >> cmd_type;
+        
+        for (char& c : cmd_type) {
+            c = std::tolower(static_cast<unsigned char>(c));
+        }
+
+        // Fill in the arguments for the specified keyword
+        if(cmd_type == "where"){
+            add_args.where.tbl_name = arguments.select.tbl_name;
+        }
+
+        fill_in_additional_cmds[cmd_type](arguments.select.additionals[i], add_args);
+        additional_args.push_back(add_args);
+        executing_line_num++;
+    }
+
+    // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
         std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
         exit(1);
@@ -274,13 +248,15 @@ void select_qmt(cmd_args arguments){
     }
 
     std::vector<std::vector<std::string>> schema = read_schema(schema_path);
-    std::unordered_map<std::string, int> attr_to_idx_mapping;
 
+    // Create a mapping to find which attribute goes to which column index
+    std::unordered_map<std::string, int> attr_to_idx_mapping;
     for(size_t i = 0; i < schema[0].size(); ++i){
         attr_to_idx_mapping[schema[0][i]] = i;
     }
 
-    std::vector<std::vector<std::string>> table = read_in_table(table_path);
+    // Read in the table into memory with the given constraints, to try and reduce on the memory load
+    std::vector<std::vector<std::string>> table = read_in_table(table_path, additional_args);
 
     std::vector<std::vector<std::string>> result_table;
     std::vector<std::vector<std::string>> result_schema;
@@ -288,18 +264,23 @@ void select_qmt(cmd_args arguments){
     result_schema.push_back(std::vector<std::string>{});
     result_schema.push_back(std::vector<std::string>{});
 
+    // If they select all columns, then just display everything
     if(arguments.select.sel_columns.size() == 1 && arguments.select.sel_columns[0] == "*"){
         display_in_memory_table(table, schema);
         return;
     }
 
+    // Otherwise, just show the columns that were specified
     for(size_t i = 0; i < arguments.select.sel_columns.size(); ++i){
         result_table.push_back(table[attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
         result_schema[0].push_back(schema[0][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
         result_schema[1].push_back(schema[1][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);;
     }
 
+    // Print it out
     display_in_memory_table(result_table, result_schema);
+
+    executing_line_num++; // update the execution line number
     return;
 
 }

@@ -11,6 +11,7 @@
 #include <filesystem>
 
 #include "fill_args.h"
+#include "impls.h"
 #include "globals.h"
 
 namespace fs = std::filesystem;
@@ -26,6 +27,11 @@ std::vector<std::string> in_memory_script;
 
 int executing_line_num = 0;
 
+/*
+Function to check if the pathname is a valid one to look within the database.
+Arguments:
+    - pathname: pathname to be checked
+*/
 bool valid_pathname(std::string pathname){
     if(db_path[0] != '/'){
         return false;
@@ -33,6 +39,11 @@ bool valid_pathname(std::string pathname){
     return true;
 }
 
+/*
+Function to check if the table name is a valid one to look within the database.
+Arguments:
+    - table: table name to be checked
+*/
 bool valid_table(std::string table){
     auto it = table.find(" ");
     if(it != std::string::npos){
@@ -47,6 +58,16 @@ bool valid_table(std::string table){
     return true;
 }
 
+/*
+Function to read in the schema into memory.
+Arguments:
+    - schema_path: path of the schema to be read in
+
+Return:
+    - 2D vector containig the results in vectors containing two inner vectors of strings
+    - Index 0 is the column names
+    - Index 1 is the column types
+*/
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path){
 
     std::vector<std::vector<std::string>> result;
@@ -99,7 +120,142 @@ std::vector<std::vector<std::string>> read_schema(const std::string &schema_path
     return result;
 }
 
-std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const select_additional_args &constraints){
+/*
+Function to check whether or not the table value passes the where constraint.
+Arguments:
+    - curr_col: the current column name for the table value
+    - curr_col_type: the current column type for the table value
+    - table_val: the current table value to be checked
+
+    - constraint: contains the details of the where statement itself
+        - lhs_expression: left side of the where
+        - rhs_expression: right side of the where
+        - comparator: how to compare the two
+
+Return:
+    - cmp_return_type: has three possible values, TRUE if passes, FALSE if fails, UNKNOWN if values were not comparabale
+*/
+cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::string table_val, const select_additional_args &constraint){
+    bool good_to_push = false;
+    std::string cmp_type;
+    std::string comparator;
+    cmp_object lhs_val;
+    cmp_object rhs_val;
+
+    // for now just assuming that the left-hand-side will represent the column name, no other operations for now
+    if(curr_col == constraint.where.lhs_expression){ // check to make sure that we are looking at the right column
+        if(check_string(constraint.where.rhs_expression)){
+            cmp_type = "string";
+            rhs_val.param_string = constraint.where.rhs_expression.substr(1, constraint.where.rhs_expression.size() - 2);
+            rhs_val.type = STRING;
+        }
+        else if(check_char(constraint.where.rhs_expression)){
+            cmp_type = "char";
+            rhs_val.param_char = constraint.where.rhs_expression[1];
+            rhs_val.type = CHAR;
+        }
+        else if(check_bool(constraint.where.rhs_expression)){
+            cmp_type = "bool";
+            if(constraint.where.rhs_expression == "true"){
+                rhs_val.param_bool = true;
+            }
+            else{
+                rhs_val.param_bool = false;
+            }
+            rhs_val.type = BOOL;
+        }
+        else if(check_int(constraint.where.rhs_expression)){
+            cmp_type = "int";
+            rhs_val.param_int = std::stoi(constraint.where.rhs_expression);
+            rhs_val.type = INT;
+        }
+        else{
+            std::cout << "Unknown type error: " << constraint.where.rhs_expression << " does not fall under any of the accepted types!\n";
+            exit(8);
+        }
+
+        if(curr_col_type == cmp_type){ // Check to make sure that the two objects are comparable
+            if(curr_col_type == "string"){
+                table_val = table_val.substr(1, table_val.size() - 2);
+                lhs_val.param_string = table_val;
+                lhs_val.type = STRING;
+            }
+            else if(curr_col_type == "char"){
+                lhs_val.param_char = table_val[1];
+                lhs_val.type = CHAR;
+            }
+            else if(curr_col_type == "bool"){
+                if(table_val == "true"){
+                    lhs_val.param_bool = true;
+                }
+                else{
+                    lhs_val.param_bool = false;
+                }
+                lhs_val.type = BOOL;
+            }
+            else if(curr_col_type == "int"){
+                lhs_val.param_int = std::stoi(table_val);
+                lhs_val.type = INT;
+            }
+            else{
+                std::cout << "Unknown type in the table? Gotta go check that one for this value: " << table_val << std::endl;
+                exit(67);
+            }
+
+            if(constraint.where.comparator == "EQUAL" || constraint.where.comparator == "="){
+                comparator = "equal";
+            }
+            else if(constraint.where.comparator == "GREATER" || constraint.where.comparator == ">"){
+                comparator = "greater";
+            }
+            else if(constraint.where.comparator == "LESS" || constraint.where.comparator == "<"){
+                comparator = "less";
+            }
+            else if(constraint.where.comparator == "NOT_EQUAL" || constraint.where.comparator == "!="){
+                comparator = "not_equal";
+            }
+            else if(constraint.where.comparator == "LESS_THAN_OR_EQUAL" || constraint.where.comparator == "<="){
+                comparator = "less_than_or_equal";
+            }
+            else if(constraint.where.comparator == "GREATER_THAN_OR_EQUAL" || constraint.where.comparator == ">="){
+                comparator = "greater_than_or_equal";
+            }
+            else{
+                std::cout << "Unknown comparator: " << constraint.where.comparator << std::endl;
+                exit(9);
+            }
+
+            good_to_push = comparators[comparator](lhs_val, rhs_val);
+        }
+        else{
+            return UNKNOWN;
+        }
+    }
+    else{
+        return UNKNOWN;
+    }
+
+    if(good_to_push){
+        return TRUE;
+    }
+    else{
+        return FALSE;
+    }
+
+    return FALSE;
+}
+
+/*
+Function to load the table into memory with the given where constraints.
+Arguments:
+    - table_path: the path of the table to read in
+    - constraints: the constraint(s) to be placed on the table
+
+Return:
+    - 2D vector containing the table structure
+    - Is a vector that contains vectors of column values
+*/
+std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const std::vector<select_additional_args> &constraints){
 
     // Structure of the in-memory table will be defined here
     // Made up of a vector of vectors
@@ -107,12 +263,6 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
     // Inner vectors hold the values for that type
     // Values align across all the vectors
     std::vector<std::vector<std::string>> result;
-
-    bool where_constraint = false;
-
-    if(constraints.where.tbl_name.size() > 0){
-        where_constraint = true;
-    }
 
     size_t pos = table_path.rfind('/');
     std::string tbl_name = table_path.substr(pos + 1);
@@ -145,7 +295,10 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
         std::string table_val;
         std::string curr_col;
         std::string curr_col_type;
-        bool good_to_push = true;
+
+        cmp_return_type good_to_push;
+        bool push = true;
+        
         int skipped_checks = 0;
         cmp_object rhs_val;
         cmp_object lhs_val;
@@ -161,106 +314,28 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
             buffer.push_back(table_val);
             // result[curr_attribute_counter].push_back(table_val);
             curr_attribute_counter = (curr_attribute_counter + 1) % num_cols;
-            
-            if(where_constraint){
-                // for now just assuming that the left-hand-side will represent the column name, no other operations for now
-                if(curr_col == constraints.where.lhs_expression){ // check to make sure that we are looking at the right column
-                    if(check_string(constraints.where.rhs_expression)){
-                        cmp_type = "string";
-                        rhs_val.param_string = constraints.where.rhs_expression.substr(1, constraints.where.rhs_expression.size() - 2);
-                        rhs_val.type = STRING;
-                    }
-                    else if(check_char(constraints.where.rhs_expression)){
-                        cmp_type = "char";
-                        rhs_val.param_char = constraints.where.rhs_expression[1];
-                        rhs_val.type = CHAR;
-                    }
-                    else if(check_bool(constraints.where.rhs_expression)){
-                        cmp_type = "bool";
-                        if(constraints.where.rhs_expression == "true"){
-                            rhs_val.param_bool = true;
-                        }
-                        else{
-                            rhs_val.param_bool = false;
-                        }
-                        rhs_val.type = BOOL;
-                    }
-                    else if(check_int(constraints.where.rhs_expression)){
-                        cmp_type = "int";
-                        rhs_val.param_int = std::stoi(constraints.where.rhs_expression);
-                        rhs_val.type = INT;
-                    }
-                    else{
-                        std::cout << "Unknown type error: " << constraints.where.rhs_expression << " does not fall under any of the accepted types!\n";
-                        exit(8);
-                    }
 
-                    if(curr_col_type == cmp_type){ // Check to make sure that the two objects are comparable
-                        if(curr_col_type == "string"){
-                            table_val = table_val.substr(1, table_val.size() - 2);
-                            lhs_val.param_string = table_val;
-                            lhs_val.type = STRING;
-                        }
-                        else if(curr_col_type == "char"){
-                            lhs_val.param_char = table_val[1];
-                            lhs_val.type = CHAR;
-                        }
-                        else if(curr_col_type == "bool"){
-                            if(table_val == "true"){
-                                lhs_val.param_bool = true;
-                            }
-                            else{
-                                lhs_val.param_bool = false;
-                            }
-                            lhs_val.type = BOOL;
-                        }
-                        else if(curr_col_type == "int"){
-                            lhs_val.param_int = std::stoi(table_val);
-                            lhs_val.type = INT;
-                        }
-                        else{
-                            std::cout << "Unknown type in the table? Gotta go check that one for this value: " << table_val << std::endl;
-                            exit(67);
-                        }
+            for(size_t x = 0; x < constraints.size(); ++x){
+                select_additional_args constraint = constraints[x]; // update to deal with all the constraints, not just one at a time
 
-                        if(constraints.where.comparator == "EQUAL" || constraints.where.comparator == "="){
-                            comparator = "equal";
-                        }
-                        else if(constraints.where.comparator == "GREATER" || constraints.where.comparator == ">"){
-                            comparator = "greater";
-                        }
-                        else if(constraints.where.comparator == "LESS" || constraints.where.comparator == "<"){
-                            comparator = "less";
-                        }
-                        else if(constraints.where.comparator == "NOT_EQUAL" || constraints.where.comparator == "!="){
-                            comparator = "not_equal";
-                        }
-                        else if(constraints.where.comparator == "LESS_THAN_OR_EQUAL" || constraints.where.comparator == "<="){
-                            comparator = "less_than_or_equal";
-                        }
-                        else if(constraints.where.comparator == "GREATER_THAN_OR_EQUAL" || constraints.where.comparator == ">="){
-                            comparator = "greater_than_or_equal";
-                        }
-                        else{
-                            std::cout << "Unknown comparator: " << constraints.where.comparator << std::endl;
-                            exit(9);
-                        }
+                bool where_constraint = false;
 
-                        good_to_push = comparators[comparator](lhs_val, rhs_val) && good_to_push;
-
-                    }
-                    else{
-                        skipped_checks++;
-                    }
+                if(constraint.where.tbl_name.size() > 0){
+                    where_constraint = true;
                 }
-                else{
-                    skipped_checks++;
+                
+                if(where_constraint){
+                    good_to_push = where_qmt(curr_col, curr_col_type, table_val, constraint);
+                    
+                    if(good_to_push == FALSE){
+                        push = false;
+                    }
                 }
             }
 
         }
 
-        if(good_to_push && skipped_checks > 0){
+        if(push){
             for(size_t i = 0; i < buffer.size(); ++i){
                 result[i].push_back(buffer[i]);
             }
@@ -273,6 +348,12 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
 
 }
 
+/*
+Function to display the table.
+Arguments:
+    - table: the in memory table to be printed out 
+    - schema: the in memory schema to print out column headers
+*/
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema){
 
     std::vector<int> column_widths;
