@@ -128,6 +128,7 @@ cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::
 // Additional functions to be used
 bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
+std::string trim_string(std::string value);
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
 std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const std::vector<select_additional_args> &constraints);
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema);

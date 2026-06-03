@@ -282,6 +282,7 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                         exit(7);
                     }
 
+                    val = trim_string(val);
                     args.insert.values.push_back(val);
                     value_idx++;
                     val.clear();

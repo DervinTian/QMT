@@ -59,6 +59,18 @@ bool valid_table(std::string table){
 }
 
 /*
+Function to trim the string so that we just have the values inside of it, not like the " ", or the ' ' surrounding it.
+Arguments:
+    - table: value, the value to be trimmed
+*/
+std::string trim_string(std::string value){
+    if(check_string(value) || check_char(value)){
+        return value.substr(1, value.size() - 2);
+    }
+    return value;
+}
+
+/*
 Function to read in the schema into memory.
 Arguments:
     - schema_path: path of the schema to be read in
@@ -176,12 +188,11 @@ cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::
 
         if(curr_col_type == cmp_type){ // Check to make sure that the two objects are comparable
             if(curr_col_type == "string"){
-                table_val = table_val.substr(1, table_val.size() - 2);
                 lhs_val.param_string = table_val;
                 lhs_val.type = STRING;
             }
             else if(curr_col_type == "char"){
-                lhs_val.param_char = table_val[1];
+                lhs_val.param_char = table_val[0];
                 lhs_val.type = CHAR;
             }
             else if(curr_col_type == "bool"){
