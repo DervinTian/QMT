@@ -24,6 +24,8 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args);
 
 void fill_create_args(const std::vector<std::string> &command, cmd_args &args);
 
+void fill_from_args(const std::string &command, select_additional_args &args);
+
 void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args);
 
 void fill_update_args(const std::vector<std::string> &command, cmd_args &args);

@@ -16,6 +16,7 @@ enum cmd_type{
     UPDATE,
     DELETE,
     WHERE,
+    FROM,
     NONE
 };
 
@@ -52,9 +53,15 @@ struct where_args{
     std::string comparator;
 };
 
+struct from_args{
+    std::string data_source;
+    int header = 0;
+};
+
 // Data structure to hold additional arguments as constraints
 struct select_additional_args{
     where_args where;
+    from_args from;
 
     cmd_type curr_type;
 };
@@ -77,6 +84,9 @@ struct insert_args{
 // Data structure to hold arguments for the CREATE command
 struct create_args{
     std::string tbl_name;
+    std::vector<std::string> additionals;
+
+    select_additional_args additional_args;
 };
 
 // Data structure to hold arguments for the ADDCOL command
@@ -124,11 +134,11 @@ extern int executing_line_num;
 
 // Additional keywords that can be used in multiple other operations, WHERE, VALUES, ...
 cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::string table_val, const select_additional_args &constraint);
+std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints);
 
 // Additional functions to be used
 bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
 std::string trim_string(std::string value);
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
-std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const std::vector<select_additional_args> &constraints);
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema);

@@ -19,6 +19,7 @@ void init_function_map(){
     fill_in_cmd["addcol"] = fill_add_col_args;
     fill_in_cmd["delete"] = fill_delete_args;
     fill_in_additional_cmds["where"] = fill_where_args;
+    fill_in_additional_cmds["from"] = fill_from_args;
 
     cmd_impls["select"] = select_qmt;
     cmd_impls["insert"] = insert_qmt;
@@ -67,6 +68,12 @@ bool run_interpreter(int starting_line, int end_line){
         cmd_args arguments;
 
         std::string line = command[i];
+
+        if(line.size() == 0){
+            executing_line_num++;
+            i = executing_line_num - starting_line;
+            continue;
+        }
 
         if(command.size() == 0){
             std::cout << "Empty command!\n";

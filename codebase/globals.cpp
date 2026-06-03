@@ -102,7 +102,7 @@ std::vector<std::vector<std::string>> read_schema(const std::string &schema_path
     std::ifstream schema_file(schema_path);
 
     std::string schema_line;
-    while(std::getline(schema_file, schema_line));
+    std::getline(schema_file, schema_line);
     schema_file.close();
 
     std::stringstream schema_ss(schema_line);
@@ -257,7 +257,7 @@ cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::
 }
 
 /*
-Function to load the table into memory with the given where constraints.
+Function for the FROM keyword to load the table into memory with the given where constraints.
 Arguments:
     - table_path: the path of the table to read in
     - constraints: the constraint(s) to be placed on the table
@@ -266,7 +266,7 @@ Return:
     - 2D vector containing the table structure
     - Is a vector that contains vectors of column values
 */
-std::vector<std::vector<std::string>> read_in_table(const std::string &table_path, const std::vector<select_additional_args> &constraints){
+std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints){
 
     // Structure of the in-memory table will be defined here
     // Made up of a vector of vectors
@@ -274,13 +274,30 @@ std::vector<std::vector<std::string>> read_in_table(const std::string &table_pat
     // Inner vectors hold the values for that type
     // Values align across all the vectors
     std::vector<std::vector<std::string>> result;
-
+    
     size_t pos = table_path.rfind('/');
-    std::string tbl_name = table_path.substr(pos + 1);
+    std::string tbl_name;
+    if(pos != std::string::npos){
+        tbl_name = table_path.substr(pos + 1);
 
-    if(!fs::exists(table_path)){
-        std::cout << "Table " << tbl_name << " doesn't exist!\n";
-        exit(3);
+        std::string file_extension;
+        if(tbl_name.size() > 4){
+            for(size_t idx = tbl_name.size() - 4; idx < tbl_name.size(); ++idx){
+                file_extension += tbl_name[idx];
+            }
+
+            if(file_extension == ".csv"){
+                tbl_name = tbl_name.substr(0, tbl_name.size() - 4);
+            }
+        }
+
+        if(!fs::exists(table_path)){
+            std::cout << "Table " << tbl_name << " doesn't exist!\n";
+            exit(3);
+        }
+    }
+    else{
+        tbl_name = table_path.substr(0, table_path.size() - 4);
     }
 
     std::ifstream table_file(table_path);

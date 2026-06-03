@@ -152,6 +152,7 @@ void fill_where_args(const std::string &command, select_additional_args &args){
     while(ss >> tmp){
         if(tmp == "WHERE"){
             go_time = true;
+            args.curr_type = WHERE;
             continue;
         }
 
@@ -317,6 +318,10 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
             continue;
         }
 
+        if(i > 0){
+            args.create.additionals.push_back(line);
+        }
+
         std::stringstream ss(line);
         std::string tmp;
         std::string tbl_name;
@@ -342,6 +347,43 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
             }   
 
         }
+    }
+}
+
+void fill_from_args(const std::string &command, select_additional_args &args){
+    bool time_go = false;
+    std::stringstream ss(command);
+    std::string tmp;
+    std::string data_source;
+    
+    while(ss >> tmp){
+        if(tmp == "FROM"){
+            time_go = true;
+            args.curr_type = FROM;
+            continue;
+        }
+
+        if(tmp == "NO_HEADER"){
+            args.from.header = 0;
+        }
+        else if(tmp == "HEADER"){
+            args.from.header = 1;
+        }
+        
+        // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
+        if(time_go){
+            for(size_t j = 0; j < tmp.size(); ++j){
+                if(tmp[j] == '('){
+                    continue;
+                }
+                if(tmp[j] == ')'){
+                    args.from.data_source = data_source;
+                    break;
+                }
+                data_source += tmp[j];
+            }
+        }   
+
     }
 }
 
