@@ -18,6 +18,7 @@ void init_function_map(){
     fill_in_cmd["create"] = fill_create_args;
     fill_in_cmd["addcol"] = fill_add_col_args;
     fill_in_cmd["delete"] = fill_delete_args;
+    fill_in_cmd["alter"] = fill_alter_args;
     fill_in_additional_cmds["where"] = fill_where_args;
     fill_in_additional_cmds["from"] = fill_from_args;
 
@@ -26,6 +27,7 @@ void init_function_map(){
     cmd_impls["create"] = create_qmt;
     cmd_impls["addcol"] = add_col_qmt;
     cmd_impls["delete"] = delete_qmt;
+    cmd_impls["alter"] = alter_qmt;
 
     check_value_against_type["string"] = check_string;
     check_value_against_type["int"] = check_int;

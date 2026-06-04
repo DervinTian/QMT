@@ -14,6 +14,7 @@ enum cmd_type{
     CREATE,
     ADD_COL,
     UPDATE,
+    ALTER,
     DELETE,
     WHERE,
     FROM,
@@ -103,6 +104,18 @@ struct update_args{
     std::string value;
 };
 
+struct alter_args{
+    std::string tbl_name;
+    std::string column_name;
+
+    // there are a bunch more keywords to follow alter, start with just modifying the schema things, so like modify and rename
+    int modify = 0;
+    std::string new_column_type;
+
+    int rename = 0;
+    std::string new_column_name;
+};
+
 // Data structure to hold arguments for the DELETE command
 struct delete_args{
     std::string tbl_name;
@@ -118,6 +131,7 @@ struct cmd_args{
     add_col_args add_cols;
     delete_args deleted;
     update_args update;
+    alter_args alter;
 };
 
 // Global variables to be used

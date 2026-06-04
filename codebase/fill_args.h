@@ -30,4 +30,6 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args);
 
 void fill_update_args(const std::vector<std::string> &command, cmd_args &args);
 
+void fill_alter_args(const std::vector<std::string> &command, cmd_args &args);
+
 void fill_delete_args(const std::vector<std::string> &command, cmd_args &args);

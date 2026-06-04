@@ -114,6 +114,7 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                     }
                     if(tmp[j] == ')'){
                         args.select.sel_columns.push_back(attr);
+                        go_time = false;
                         continue;
                     }
 
@@ -165,6 +166,7 @@ void fill_where_args(const std::string &command, select_additional_args &args){
                 }
                 if(tmp[j] == ')'){
                     args.where.rhs_expression = attr;
+                    go_time = false;
                     break;
                 }
 
@@ -288,6 +290,7 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                     value_idx++;
                     val.clear();
                     inside_string = false;
+                    go_time = false;
                 }
                 else{
                     val += line[j];
@@ -340,12 +343,12 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
                     }
                     if(tmp[j] == ')'){
                         args.create.tbl_name = tbl_name;
+                        time_go = false;
                         break;
                     }
                     tbl_name += tmp[j];
                 }
             }   
-
         }
     }
 }
@@ -378,6 +381,7 @@ void fill_from_args(const std::string &command, select_additional_args &args){
                 }
                 if(tmp[j] == ')'){
                     args.from.data_source = data_source;
+                    time_go = false;
                     break;
                 }
                 data_source += tmp[j];
@@ -427,6 +431,7 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args){
                     if(tmp[j] == ')'){
                         args.add_cols.column_name = attr;
                         attr.clear();
+                        go_time = false;
                         break;
                     }
 
@@ -459,6 +464,100 @@ Arguments:
 */
 void fill_update_args(const std::vector<std::string> &command, cmd_args &args){
 
+}
+
+/*
+Function in order to fill in the arguments ALTER to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
+void fill_alter_args(const std::vector<std::string> &command, cmd_args &args){
+    std::cout << "Alter function added to the function map, can fill out args for alter statements" << std::endl;
+    args.cmd = ALTER;
+
+    for(size_t i = 0; i < command.size(); ++i){
+        std::vector<std::string> line_content;
+        std::string line = command[i];
+
+        bool roll_out = false;
+
+        bool rename = false;
+        bool modify = false;
+
+        if(line.size() == 0){
+            continue;
+        }
+
+        std::stringstream ss(line);
+        std::string tmp;
+        std::string tbl_name;
+
+        while(ss >> tmp){
+            if(tmp == "ALTER"){
+                roll_out = true;
+                continue;
+            }
+            else if(tmp == "MODIFY"){
+                modify = true;
+                args.alter.modify = 1;
+                continue;
+            }
+            else if(tmp == "RENAME"){
+                rename = true;
+                args.alter.rename = 1;
+                continue;
+            }
+
+            if(roll_out){
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.alter.tbl_name = tbl_name;
+                        roll_out = false;
+                        break;
+                    }
+                    tbl_name += tmp[j];
+                }
+            } 
+            else if(modify){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.alter.new_column_type = attr;
+                        modify = false;
+                        break;
+                    }
+                    if(tmp[j] == ','){
+                        args.alter.column_name = attr;
+                    }
+                    attr += tmp[j];
+                }
+            } 
+            else if(rename){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.alter.new_column_name = attr;
+                        rename = false;
+                        break;
+                    }
+                    if(tmp[j] == ','){
+                        args.alter.column_name = attr;
+                    }
+                    attr += tmp[j];
+                }
+            }
+        }
+    }
 }
 
 /*
@@ -499,6 +598,7 @@ void fill_delete_args(const std::vector<std::string> &command, cmd_args &args){
                     }
                     if(tmp[j] == ')'){
                         args.deleted.tbl_name = tbl_name;
+                        time_go = false;
                         break;
                     }
                     tbl_name += tmp[j];
