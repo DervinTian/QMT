@@ -100,8 +100,11 @@ struct add_col_args{
 // Data structure to hold arguments for the UPDATE command
 struct update_args{
     std::string tbl_name;
-    std::string column_name;
-    std::string value;
+
+    std::vector<std::pair<std::string, std::string>> set_values;
+    
+    std::vector<std::string> additionals;
+    select_additional_args additional_args;
 };
 
 struct alter_args{
@@ -156,3 +159,4 @@ bool valid_pathname(std::string pathname);
 std::string trim_string(std::string value);
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema);
+void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std::string tbl_name);

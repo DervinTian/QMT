@@ -425,3 +425,37 @@ void display_in_memory_table(const std::vector<std::vector<std::string>> &table,
     }
 
 }
+
+/*
+Function to write the in-memory table onto disk.
+Arguments:
+    - table: the in memory table to be printed out 
+    - tbl_name: the table name for the table
+*/
+void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std::string tbl_name){
+    std::string table_path = db_path + "/" + tbl_name;
+
+    if(!fs::exists(table_path)){
+        std::cout << "Table " << tbl_name << " doesn't exist!\n";
+        exit(3);
+    }
+
+    std::ofstream tbl_file(table_path);
+    std::string table_line;
+
+    int num_attributes = table.size();
+
+    for (size_t col = 0; col < table[0].size(); col++) {
+        for (size_t row = 0; row < table.size(); row++) {
+            tbl_file << table[row][col];
+            if(row < num_attributes - 1){
+                tbl_file << ",";
+            }
+        }
+
+        tbl_file << "\n";
+    }
+
+    tbl_file.close();
+
+}

@@ -15,6 +15,8 @@ void insert_qmt(const cmd_args &arguments);
 
 void create_qmt(const cmd_args &arguments);
 
+void update_qmt(const cmd_args &arguments);
+
 void alter_qmt(const cmd_args &arguments);
 
 void add_col_qmt(const cmd_args &arguments);

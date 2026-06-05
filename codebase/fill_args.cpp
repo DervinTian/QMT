@@ -463,7 +463,83 @@ Arguments:
     - args: The arguments to fill in, later to be passed into the implementation
 */
 void fill_update_args(const std::vector<std::string> &command, cmd_args &args){
+    std::cout << "Update function added to the function map, can fill out args for update statements" << std::endl;
+    args.cmd = UPDATE;
 
+    for(size_t i = 0; i < command.size(); ++i){
+        std::vector<std::string> line_content;
+        std::string line = command[i]; 
+        
+        bool autobots = false;
+        bool set = false;
+        bool additional = false;
+
+        if(line.size() == 0){
+            continue;
+        }
+
+        std::stringstream ss(line);
+        std::string tmp;
+        std::string tbl_name;
+        std::pair<std::string, std::string> set_value_pair;
+
+        while(ss >> tmp){
+            if(tmp == "UPDATE"){
+                autobots = true;
+                continue;
+            }
+            else if(tmp == "SET"){
+                set = true;
+                continue;
+            }
+            else if(tmp != "SET" && !set && !autobots){
+                if(!additional){    
+                    args.update.additionals.push_back(line);
+                    additional = true;
+                }
+
+                if(tmp.find('\n') != std::string::npos){
+                    additional = false;
+                }
+                
+                continue;
+            }
+
+            if(autobots){
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.update.tbl_name = tbl_name;
+                        autobots = false;
+                        break;
+                    }
+                    tbl_name += tmp[j];
+                }
+            }
+
+            if(set){
+                int mode = 0;
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        set_value_pair.second = attr;
+                        args.update.set_values.push_back(set_value_pair);
+                        set = false;
+                        break;
+                    }
+                    if(tmp[j] == ','){
+                        set_value_pair.first = attr;
+                    }
+                    attr += tmp[j];
+                }
+            }
+        }
+    }
 }
 
 /*
