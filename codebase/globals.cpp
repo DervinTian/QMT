@@ -385,9 +385,16 @@ Arguments:
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema){
 
     std::vector<int> column_widths;
+    std::string result_path = "query_result";
+    std::ofstream result_file(result_path);
 
     // Going to use AI to help me do some pretty printing so just beware, I am not a cout wizard
     std::cout << std::left;
+    result_file << std::left;
+
+    std::cout << "Query returned " << table[0].size() << " results.\n";
+    result_file << "Query returned " << table[0].size() << " results.\n";
+
     int total_width = 0;
     for(size_t i = 0; i < schema[0].size(); ++i){
         std::string column_header = schema[0][i] + " (" + schema[1][i] + ")";
@@ -395,17 +402,26 @@ void display_in_memory_table(const std::vector<std::vector<std::string>> &table,
         column_widths.push_back(width);
         total_width += width;
         std::cout << std::setw(width) << column_header;
+        result_file << std::setw(width) << column_header;
     }
-    std::cout << std::endl;
 
+    std::cout << std::endl;
     std::cout << std::string(total_width + 5, '-') << "\n";
+
+    result_file << std::endl;
+    result_file << std::string(total_width + 5, '-') << "\n";
 
     for (size_t col = 0; col < table[0].size(); col++) {
         std::cout << std::left;
+        result_file << std::left;
+
         for (size_t row = 0; row < table.size(); row++) {
             std::cout << std::setw(column_widths[row]) << table[row][col];
+            result_file << std::setw(column_widths[row]) << table[row][col];
         }
+
         std::cout << "\n";
+        result_file << "\n";
     }
 
 }
