@@ -22,6 +22,7 @@ Arguments:
 */
 void select_qmt(const cmd_args &arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
+    executing_line_num++; // update the execution line number
 
     std::vector<select_additional_args> additional_args;
     select_additional_args add_args;
@@ -42,6 +43,7 @@ void select_qmt(const cmd_args &arguments){
         }
 
         fill_in_additional_cmds[cmd_type](arguments.select.additionals[i], add_args);
+
         additional_args.push_back(add_args);
         executing_line_num++;
     }
@@ -99,7 +101,6 @@ void select_qmt(const cmd_args &arguments){
     // Print it out
     display_in_memory_table(result_table, result_schema);
 
-    executing_line_num++; // update the execution line number
     return;
 
 }
@@ -111,6 +112,7 @@ Arguments:
 */
 void insert_qmt(const cmd_args &arguments){
     std::cout << "Running insert implementation, can fill out semantics later\n";
+    executing_line_num++; // update the execution line number
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
@@ -143,7 +145,6 @@ void insert_qmt(const cmd_args &arguments){
     tbl << '\n';
     tbl.close();
 
-    executing_line_num++; // update the execution line number
     return;
 }
 
@@ -154,6 +155,7 @@ Arguments:
 */
 void create_qmt(const cmd_args &arguments){
     std::cout << "Running create implementation, can fill out semantics later\n";
+    executing_line_num++; // update the execution line number
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
@@ -250,7 +252,6 @@ void create_qmt(const cmd_args &arguments){
 
     }
 
-    executing_line_num++; // update the execution line number
     return;
 
 }
@@ -262,6 +263,7 @@ Arguments:
 */
 void update_qmt(const cmd_args &arguments){
     std::cout << "Running update implementation, can fill out semantics later\n";
+    executing_line_num++;
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
@@ -382,7 +384,6 @@ void update_qmt(const cmd_args &arguments){
 
     write_table_to_disk(whole_table, arguments.update.tbl_name);
 
-    executing_line_num++;
     return;
 }
 
@@ -396,6 +397,7 @@ Arguments:
 */
 void alter_qmt(const cmd_args &arguments){
     std::cout << "Running alter implementation, can fill out semantics later\n";
+    executing_line_num++; // update the execution line number
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
@@ -518,7 +520,6 @@ void alter_qmt(const cmd_args &arguments){
         executing_line_num++; // update the execution line number
     }
 
-    executing_line_num++; // update the execution line number
     return;
 }
 
@@ -529,6 +530,7 @@ Arguments:
 */
 void add_col_qmt(const cmd_args &arguments){
     std::cout << "Running addcol implementation, can fill out semantics later\n";
+    executing_line_num++; // update the execution line number
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
@@ -567,7 +569,6 @@ void add_col_qmt(const cmd_args &arguments){
 
     out_schema.close();
 
-    executing_line_num++; // update the execution line number
     return;
 
 }
@@ -579,6 +580,7 @@ Arguments:
 */
 void delete_qmt(const cmd_args &arguments){
     std::cout << "Running delete implementation, can fill out semantics later\n";
+    executing_line_num++; // update the execution line number
 
     // Do error checking to ensure that the database and the tables are valid paths
     if(!valid_pathname(db_path)){
@@ -606,6 +608,5 @@ void delete_qmt(const cmd_args &arguments){
         fs::remove(schema_path);
     }
 
-    executing_line_num++; // update the execution line number
     return;
 }

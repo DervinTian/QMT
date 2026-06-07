@@ -18,7 +18,15 @@ enum cmd_type{
     DELETE,
     WHERE,
     FROM,
+    MATH,
     NONE
+};
+
+enum math_modes{
+    ADD,
+    SUBTRACT,
+    MULTIPLY,
+    DIVIDE
 };
 
 // The compare object types, used in comparisons
@@ -46,12 +54,21 @@ struct cmp_object{
     cmp_object_type type;
 };
 
+struct math_args{
+    std::vector<std::string> expression_pieces;
+    std::vector<std::string> variables;
+};
+
 // Data structure to hold arguments for the WHERE command
 struct where_args{
     std::string tbl_name;
     std::string lhs_expression;
     std::string rhs_expression;
     std::string comparator;
+
+    math_args math;
+
+    cmd_type type;
 };
 
 struct from_args{

@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include <cctype>
+#include <cmath>
 #include <unordered_map>
 #include <filesystem>
 
@@ -155,7 +156,107 @@ cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::
     cmp_object rhs_val;
 
     // for now just assuming that the left-hand-side will represent the column name, no other operations for now
-    if(curr_col == constraint.where.lhs_expression){ // check to make sure that we are looking at the right column
+    if(constraint.where.type == MATH){
+        if(!check_int(table_val)){
+            return UNKNOWN;
+        }
+
+        if(curr_col != constraint.where.math.variables[0]){ // for now just assume that we are only using one variable, i.e. one column
+            return UNKNOWN;
+        }
+
+        int expression_result = 0;
+
+        int prev_add_or_subtract = 1;
+        int curr_add_or_subtract = 1;
+        int prev_multiply_or_divide = 1;
+        int curr_multiply_or_divide = 1;
+        int term = 0;
+        bool end_of_term = false;
+
+        math_modes prev_operation = ADD;
+        math_modes curr_operation = ADD;
+
+        for(size_t i = 0; i < constraint.where.math.expression_pieces.size(); ++i){
+            std::string expression_pc = constraint.where.math.expression_pieces[i];
+            if(expression_pc == "?"){
+                if(!check_int(table_val)){
+                    std::cout << table_val << " is not of INT type, but was used in a math expression!\n";
+                    exit(11);
+                }
+
+                term += (prev_add_or_subtract) * std::stoi(table_val);
+            }
+            else if(expression_pc == "+"){
+                end_of_term = true;
+                curr_add_or_subtract = 1;
+                curr_operation = ADD;
+            }
+            else if(expression_pc == "-"){
+                end_of_term = true;
+                curr_add_or_subtract = -1;
+                curr_operation = SUBTRACT;
+            }
+            else if(expression_pc == "*"){
+                end_of_term = true;
+                curr_multiply_or_divide = 1;
+                curr_operation = MULTIPLY;
+            }
+            else if(expression_pc == "/"){
+                end_of_term = true;
+                curr_multiply_or_divide = -1;
+                curr_operation = DIVIDE;
+            }
+            else if(check_int(expression_pc)){
+                term += std::stoi(expression_pc);
+            }
+            else{
+                std::cout << "Unknown operation specified!\n" << std::endl;
+                exit(12);
+            }
+
+            if(end_of_term){
+                end_of_term = false;
+                if(prev_operation == ADD || prev_operation == SUBTRACT){
+                    expression_result += (prev_add_or_subtract) * term;
+                    prev_add_or_subtract = curr_add_or_subtract;
+                }
+                else if(prev_operation == MULTIPLY || prev_operation == DIVIDE){
+                    expression_result *= std::pow(term, prev_multiply_or_divide);
+                    prev_multiply_or_divide = curr_multiply_or_divide;
+                }
+                else{
+                    std::cout << "Unknown operation specified!\n" << std::endl;
+                    exit(12);
+                }
+                term = 0;
+                prev_operation = curr_operation;
+            }
+        }
+
+        if(prev_operation == ADD || prev_operation == SUBTRACT){
+            expression_result += (prev_add_or_subtract) * term;
+            prev_add_or_subtract = curr_add_or_subtract;
+        }
+        else if(prev_operation == MULTIPLY || prev_operation == DIVIDE){
+            expression_result *= std::pow(term, prev_multiply_or_divide);
+            prev_multiply_or_divide = curr_multiply_or_divide;
+        }
+        else{
+            std::cout << "Unknown operation specified!\n" << std::endl;
+            exit(12);
+        }
+
+        lhs_val.param_int = expression_result;
+        lhs_val.type = INT;
+        if(!check_int(constraint.where.rhs_expression)){
+            std::cout << "Unable to compare " << constraint.where.rhs_expression << " with a MATH expression!\n";
+            exit(13);
+        }
+        rhs_val.param_int = std::stoi(constraint.where.rhs_expression);
+        rhs_val.type = INT;
+    }
+    else if(curr_col == constraint.where.lhs_expression){ // check to make sure that we are looking at the right column
         if(check_string(constraint.where.rhs_expression)){
             cmp_type = "string";
             rhs_val.param_string = constraint.where.rhs_expression.substr(1, constraint.where.rhs_expression.size() - 2);
@@ -212,31 +313,6 @@ cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::
                 std::cout << "Unknown type in the table? Gotta go check that one for this value: " << table_val << std::endl;
                 exit(67);
             }
-
-            if(constraint.where.comparator == "EQUAL" || constraint.where.comparator == "="){
-                comparator = "equal";
-            }
-            else if(constraint.where.comparator == "GREATER" || constraint.where.comparator == ">"){
-                comparator = "greater";
-            }
-            else if(constraint.where.comparator == "LESS" || constraint.where.comparator == "<"){
-                comparator = "less";
-            }
-            else if(constraint.where.comparator == "NOT_EQUAL" || constraint.where.comparator == "!="){
-                comparator = "not_equal";
-            }
-            else if(constraint.where.comparator == "LESS_THAN_OR_EQUAL" || constraint.where.comparator == "<="){
-                comparator = "less_than_or_equal";
-            }
-            else if(constraint.where.comparator == "GREATER_THAN_OR_EQUAL" || constraint.where.comparator == ">="){
-                comparator = "greater_than_or_equal";
-            }
-            else{
-                std::cout << "Unknown comparator: " << constraint.where.comparator << std::endl;
-                exit(9);
-            }
-
-            good_to_push = comparators[comparator](lhs_val, rhs_val);
         }
         else{
             return UNKNOWN;
@@ -245,6 +321,31 @@ cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::
     else{
         return UNKNOWN;
     }
+
+    if(constraint.where.comparator == "EQUAL" || constraint.where.comparator == "="){
+        comparator = "equal";
+    }
+    else if(constraint.where.comparator == "GREATER" || constraint.where.comparator == ">"){
+        comparator = "greater";
+    }
+    else if(constraint.where.comparator == "LESS" || constraint.where.comparator == "<"){
+        comparator = "less";
+    }
+    else if(constraint.where.comparator == "NOT_EQUAL" || constraint.where.comparator == "!="){
+        comparator = "not_equal";
+    }
+    else if(constraint.where.comparator == "LESS_THAN_OR_EQUAL" || constraint.where.comparator == "<="){
+        comparator = "less_than_or_equal";
+    }
+    else if(constraint.where.comparator == "GREATER_THAN_OR_EQUAL" || constraint.where.comparator == ">="){
+        comparator = "greater_than_or_equal";
+    }
+    else{
+        std::cout << "Unknown comparator: " << constraint.where.comparator << std::endl;
+        exit(9);
+    }
+
+    good_to_push = comparators[comparator](lhs_val, rhs_val);
 
     if(good_to_push){
         return TRUE;
