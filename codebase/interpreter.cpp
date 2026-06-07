@@ -61,7 +61,7 @@ bool run_interpreter(int starting_line, int end_line){
 
     std::vector<std::string> command;
     for(int i = starting_line; i < end_line + 1; ++i){
-        if(in_memory_script[i].front() != '#'){
+        if(in_memory_script[i].front() != '#' && in_memory_script[i].size() > 0){
             command.push_back(in_memory_script[i]);
         }
     }
@@ -77,11 +77,6 @@ bool run_interpreter(int starting_line, int end_line){
             executing_line_num++;
             i = executing_line_num - starting_line;
             continue;
-        }
-
-        if(command.size() == 0){
-            std::cout << "Empty command!\n";
-            return false;
         }
 
         if(line.back() == ';'){
