@@ -213,10 +213,8 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Insert function added to the function map, can fill out args for insert statements" << std::endl;
     args.cmd = INSERT;
 
-    int table = 0;
     int type = 0;
     int value_idx = 0;
-    int char_idx = 6;
 
     std::vector<std::string> schema;
     std::vector<std::string> schema_types;
@@ -226,6 +224,7 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
         std::string line = command[i];
 
         bool go_time = false;
+        bool values_time = false;
 
         if(line.size() == 0){
             continue;
@@ -239,18 +238,21 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                 go_time = true;
                 continue;
             }
+            if(tmp == "VALUES"){
+                values_time = true;
+                continue;
+            }
 
             // If we are good to go, then go through the parenthesis, and read the table to find the schema first
             if(go_time){
                 std::string attr;
                 for(size_t j = 0; j < tmp.size(); ++j){
-                    char_idx++;
 
                     if(tmp[j] == '('){
                         continue;
                     }
 
-                    if(tmp[j] == ','){
+                    if(tmp[j] == ')'){
                         args.insert.tbl_name = attr;
 
                         if(!valid_table(args.insert.tbl_name)){
@@ -262,7 +264,6 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
 
                         schema_types = read_schema(schema_path)[1];
 
-                        table = 1;
                         attr.clear();
                         break;
                     }
@@ -271,47 +272,37 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                     }
 
                 }
-
-                if(table == 1){ // used for early termination, since we just want to read in the table name here
-                    char_idx++; // helps us get out of the comma
-                    break;
-                }
             }
 
-        }
+            if(values_time){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
 
-        // For each comma delimited value assign it to it's appropriate field in the arguments and ensure that it is of the proper type
-        if(go_time){
-            bool inside_string = false;
-            std::string val;
-            for(size_t j = char_idx; j < line.size(); ++j){
-
-                if(line[j] == ' ' && !inside_string){
-                    continue;
-                }
-
-                if(line[j] == '\"'){
-                    inside_string = true;
-                }
-
-                if(line[j] == ',' || line[j] == ')'){
-                    std::string actual_type = schema_types[value_idx];
-                    if(!check_value_against_type[actual_type](val)){
-                        std::cout << "Wrong type being, expected " << actual_type << ", inserted into the column!\n";
-                        exit(7);
+                    if(tmp[j] == '('){
+                        continue;
                     }
+                    if(tmp[j] == ',' || tmp[j] == ')'){
+                        std::string actual_type = schema_types[value_idx];
+                        if(!check_value_against_type[actual_type](attr)){
+                            std::cout << "Wrong type being, expected " << actual_type << ", inserted into the column!\n";
+                            exit(7);
+                        }
 
-                    val = trim_string(val);
-                    args.insert.values.push_back(val);
-                    value_idx++;
-                    val.clear();
-                    inside_string = false;
-                    go_time = false;
+                        attr = trim_string(attr);
+                        args.insert.values.push_back(attr);
+                        value_idx++;
+
+                        if(tmp[j] == ')'){
+                            values_time = false;
+                        }
+                    }
+                    else{
+                        attr += tmp[j];
+                    }
                 }
-                else{
-                    val += line[j];
-                }
+                executing_line_num++; // For now since VALUES isn't like an operation, just move the next line here. Maybe will change in the future 
             }
+
         }
 
     }
