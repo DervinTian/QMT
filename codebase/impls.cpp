@@ -75,6 +75,7 @@ void select_qmt(const cmd_args &arguments){
 
     // Read in the table into memory with the given constraints, to try and reduce on the memory load
     std::vector<std::vector<std::string>> table = from_qmt(table_path, additional_args);
+    executing_line_num++;
 
     std::vector<std::vector<std::string>> result_table;
     std::vector<std::vector<std::string>> result_schema;

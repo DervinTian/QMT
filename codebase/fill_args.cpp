@@ -85,14 +85,16 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
         std::string line = command[i];
 
         bool go_time = false;
+        bool from_time = false;
 
         // skip if there is an empty command
         if(line.size() == 0){
             continue;
         }
 
-        if(i > 0){
+        if(i > 1){
             args.select.additionals.push_back(line);
+            continue;
         }
 
         std::stringstream ss(line);
@@ -102,6 +104,10 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
         while(ss >> tmp){
             if(tmp == "SELECT"){ // set everything to go if we are executing the SELECT statement
                 go_time = true;
+                continue;
+            }
+            if(tmp == "FROM"){
+                from_time = true;
                 continue;
             }
 
@@ -119,17 +125,27 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                     }
 
                     if(tmp[j] == ','){
-                        if(!table){
-                            args.select.tbl_name = attr;
-                            table = true;
-                        }
-                        else{
-                            args.select.sel_columns.push_back(attr);
-                        }
+                        args.select.sel_columns.push_back(attr);
                     }
                     else{
                         attr += tmp[j];
                     }
+                }
+            }
+
+            if(from_time){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.select.tbl_name = attr;
+                        from_time = false;
+                        continue;
+                    }
+
+                    attr += tmp[j];
                 }
             }
         }
