@@ -338,8 +338,6 @@ void update_qmt(const cmd_args &arguments){
         exit(10);
     }
 
-    columns_in_there.insert(0);
-
     for (size_t col = 0; col < whole_table[0].size(); col++) {
         std::string table_search_key;
         for (size_t row = 0; row < whole_table.size(); row++) {
@@ -373,8 +371,6 @@ void update_qmt(const cmd_args &arguments){
         for(size_t x = 0; x < whole_table[attr_idx].size(); ++x){
             auto it = columns_in_there.find(x);
             if(it != columns_in_there.end()){
-                std::cout << "Here\n";
-                std::cout << new_val << std::endl;
                 whole_table[attr_idx][x] = new_val;
             }
         }
@@ -568,6 +564,45 @@ void add_col_qmt(const cmd_args &arguments){
     out_schema << line;
 
     out_schema.close();
+
+    int int_default_value = 0;
+    std::string str_default_value = "NULL";
+    char char_default_value = '0';
+    bool bool_default_value = false;
+
+    std::ifstream table(table_path);
+    std::string table_line;
+
+    std::vector<std::string> in_memory_table;
+
+    while(std::getline(table, table_line)){
+        in_memory_table.push_back(table_line);
+    }
+    table.close();
+
+    std::ofstream output_table(table_path);
+
+    for(size_t i = 0; i < in_memory_table.size(); ++i){
+        std::string curr_line = in_memory_table[i];
+        if(arguments.add_cols.type == "string"){
+            output_table << curr_line + str_default_value + ",\n";
+        }
+        else if(arguments.add_cols.type == "int"){
+            output_table << curr_line + std::to_string(int_default_value) + ",\n";
+        }
+        else if(arguments.add_cols.type == "bool"){
+            output_table << curr_line + std::to_string(bool_default_value) + ",\n";
+        }
+        else if(arguments.add_cols.type == "char"){
+            output_table << curr_line + std::to_string(char_default_value) + ",\n";
+        }
+        else{
+            std::cout << arguments.add_cols.type << " is not a recognized type!\n";
+            exit(16);
+        }
+    }
+    output_table.close();
+    
 
     return;
 

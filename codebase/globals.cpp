@@ -677,10 +677,7 @@ void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std
 
     for (size_t col = 0; col < table[0].size(); col++) {
         for (size_t row = 0; row < table.size(); row++) {
-            tbl_file << table[row][col];
-            if(row < num_attributes - 1){
-                tbl_file << ",";
-            }
+            tbl_file << table[row][col] << ",";
         }
 
         tbl_file << "\n";
