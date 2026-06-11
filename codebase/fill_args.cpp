@@ -191,7 +191,13 @@ void fill_where_args(const std::string &command, select_additional_args &args){
                     continue;
                 }
                 if(tmp[j] == ')'){
-                    if(math_mode){
+                    if(math_mode && !finished_reading_math_expression){
+                        args.where.math.expression_pieces.push_back(attr);
+                        finished_reading_math_expression = true;
+                        math_mode = false;
+                        mode = 1;
+                    }
+                    else if(math_mode){
                         args.where.math.variables.push_back(attr);
                         mode = 1;
                         math_mode = false;

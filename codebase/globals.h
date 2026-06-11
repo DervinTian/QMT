@@ -23,10 +23,10 @@ enum cmd_type{
 };
 
 enum math_modes{
-    ADD,
     SUBTRACT,
+    ADD,
+    DIVIDE,
     MULTIPLY,
-    DIVIDE
 };
 
 // The compare object types, used in comparisons
@@ -169,6 +169,7 @@ extern int executing_line_num;
 // Additional keywords that can be used in multiple other operations, WHERE, VALUES, ...
 cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::string table_val, const select_additional_args &constraint);
 std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints);
+double math_qmt(const select_additional_args &constraint, std::string table_val);
 
 // Additional functions to be used
 bool valid_table(std::string table);

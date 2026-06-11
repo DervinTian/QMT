@@ -133,6 +133,213 @@ std::vector<std::vector<std::string>> read_schema(const std::string &schema_path
     return result;
 }
 
+// Enum to represent the different ordering of operators according to PEMDAS convention
+enum operator_priority {
+    SUB_ADD,
+    MULT_DIVIDE,
+};
+
+// struct to represent the operation "+", "-", "*", "/" as an in-memory object
+struct operation{
+    std::string op_symbol;
+    operator_priority priority;
+    int position;
+};
+
+// custom comparator for a priority queue
+struct operation_comparator{
+    bool operator()(operation &lhs, operation &rhs){
+        if(lhs.priority == rhs.priority){
+            return lhs.position > rhs.position;
+        }
+        else{
+            return lhs.priority < rhs.priority;
+        }
+    }
+}; 
+
+/*
+Function to evaluate the expression recursively
+Arguments:
+
+    - expression: represents the expression, broken down into individual components.
+        
+Recursively evaluates the expression going down to lowest level and then evaluating up to the other levels.
+*/
+void recursive_evaluate(std::vector<std::string> &expression){
+
+    for(size_t i = 0; i < expression.size(); ++i){
+        if(expression[i] == "("){
+            int count_extra_parens = 0;
+            int start_of_expression = i;
+            int end_of_expression = i;
+            bool end_expression = false;
+            for(int j = i + 1; j < expression.size(); ++j){
+                if(expression[j] == "("){
+                    count_extra_parens++;
+                }
+                if(expression[j] == ")"){
+                    if(count_extra_parens == 0){
+                        end_expression = true;
+                        end_of_expression = j;
+                        break;
+                    }
+                    count_extra_parens--;
+                }
+            }
+
+            if(end_expression){
+                std::vector<std::string> nested_expression;
+                for(int k = start_of_expression + 1; k < end_of_expression; ++k){
+                    nested_expression.push_back(expression[k]);
+                }
+
+                recursive_evaluate(nested_expression);
+                
+                std::vector<std::string> expression_copy;
+                for(int q = 0; q < expression.size(); ++q){
+                    if(q == start_of_expression){
+                        expression_copy.push_back(nested_expression[0]);
+                        q = end_of_expression + 1;
+                        if(q >= expression.size()){
+                            break;
+                        }
+                    }
+                    expression_copy.push_back(expression[q]);
+                }
+                expression = expression_copy;
+            }
+            else{
+                std::cout << "Wut\n";
+            }
+
+        }
+    }
+
+    std::unordered_map<int, operation> operation_positions;
+    for(size_t i = 0; i < expression.size(); ++i){
+        if(expression[i] == "+"){
+            operation op;
+            op.op_symbol = "+";
+            op.position = i;
+            op.priority = SUB_ADD;
+            operation_positions[i] = op;
+        }
+        else if(expression[i] == "-"){
+            operation op;
+            op.op_symbol = "-";
+            op.position = i;
+            op.priority = SUB_ADD;
+            operation_positions[i] = op;
+        }
+        else if(expression[i] == "*"){
+            operation op;
+            op.op_symbol = "*";
+            op.position = i;
+            op.priority = MULT_DIVIDE;
+            operation_positions[i] = op;
+        }
+        else if(expression[i] == "/"){
+            operation op;
+            op.op_symbol = "/";
+            op.position = i;
+            op.priority = MULT_DIVIDE;
+            operation_positions[i] = op;
+        }
+    }
+
+    std::priority_queue<operation, std::vector<operation>, operation_comparator> operation_pq;
+
+    for(auto &pair : operation_positions){
+        int curr_operator_position = pair.first;
+        operation curr_operation = pair.second;
+
+        operation_pq.push(curr_operation);
+    }
+
+    while(operation_pq.size() > 0){
+        operation top_operation = operation_pq.top();
+        operation_pq.pop();
+
+        std::vector<std::string> expression_copy;
+        std::priority_queue<operation, std::vector<operation>, operation_comparator> operation_pq_copy;
+        
+        int left_pos = top_operation.position - 1;
+        int right_pos = top_operation.position + 1;
+
+        double op_result = 0;
+        if(top_operation.op_symbol == "+"){
+            op_result = std::stod(expression[left_pos]) + std::stod(expression[right_pos]);
+        }
+        else if(top_operation.op_symbol == "-"){
+            op_result = std::stod(expression[left_pos]) - std::stod(expression[right_pos]);
+        }
+        else if(top_operation.op_symbol == "*"){
+            op_result = std::stod(expression[left_pos]) * std::stod(expression[right_pos]);
+        }
+        else if(top_operation.op_symbol == "/"){
+            op_result = std::stod(expression[left_pos]) / std::stod(expression[right_pos]);
+        }
+
+        for(size_t i = 0; i < expression.size(); ++i){
+            if(i == left_pos){
+                expression_copy.push_back(std::to_string(op_result));
+                i = right_pos;
+            }
+            else{
+                expression_copy.push_back(expression[i]);
+            }
+        }
+
+        expression = expression_copy;
+
+        while(operation_pq.size() > 0){
+            operation top = operation_pq.top();
+            operation_pq.pop();
+            if(top.position < left_pos + 1){
+                operation_pq_copy.push(top);
+                continue;
+            }
+
+            top.position -= 2;
+            operation_pq_copy.push(top);
+        }
+
+        operation_pq = operation_pq_copy;
+    }
+
+}
+
+/*
+Function to evaluate the expression for the MATH keyword
+Arguments:
+
+    - constraint: contains the details of the where statement itself
+        - each term in the expression, containing integers, decimals, operators, parenthesis
+    
+    - table_val: represents the table variable value that corresponds to "?" in the expression
+
+Return:
+    - double: the result of the expression as a decimal value to be used in future comparisons
+*/
+double math_qmt(const select_additional_args &constraint, std::string table_val){
+    std::cout << "Running math implementation\n";
+
+    select_additional_args constraint_copy = constraint;
+
+    for(size_t i = 0; i < constraint_copy.where.math.expression_pieces.size(); ++i){
+        if(constraint_copy.where.math.expression_pieces[i] == "?"){
+            constraint_copy.where.math.expression_pieces[i] = table_val;
+        }
+    }
+
+    recursive_evaluate(constraint_copy.where.math.expression_pieces);
+    double result = std::stod(constraint_copy.where.math.expression_pieces[0]);
+    std::cout << "Result is: " << result << std::endl;
+
+    return result;
+}
+
 /*
 Function to check whether or not the table value passes the where constraint.
 Arguments:
@@ -161,91 +368,13 @@ cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::
             return UNKNOWN;
         }
 
-        if(curr_col != constraint.where.math.variables[0]){ // for now just assume that we are only using one variable, i.e. one column
-            return UNKNOWN;
-        }
-
-        int expression_result = 0;
-
-        int prev_add_or_subtract = 1;
-        int curr_add_or_subtract = 1;
-        int prev_multiply_or_divide = 1;
-        int curr_multiply_or_divide = 1;
-        int term = 0;
-        bool end_of_term = false;
-
-        math_modes prev_operation = ADD;
-        math_modes curr_operation = ADD;
-
-        for(size_t i = 0; i < constraint.where.math.expression_pieces.size(); ++i){
-            std::string expression_pc = constraint.where.math.expression_pieces[i];
-            if(expression_pc == "?"){
-                if(!check_int(table_val)){
-                    std::cout << table_val << " is not of INT type, but was used in a math expression!\n";
-                    exit(11);
-                }
-
-                term += (prev_add_or_subtract) * std::stoi(table_val);
-            }
-            else if(expression_pc == "+"){
-                end_of_term = true;
-                curr_add_or_subtract = 1;
-                curr_operation = ADD;
-            }
-            else if(expression_pc == "-"){
-                end_of_term = true;
-                curr_add_or_subtract = -1;
-                curr_operation = SUBTRACT;
-            }
-            else if(expression_pc == "*"){
-                end_of_term = true;
-                curr_multiply_or_divide = 1;
-                curr_operation = MULTIPLY;
-            }
-            else if(expression_pc == "/"){
-                end_of_term = true;
-                curr_multiply_or_divide = -1;
-                curr_operation = DIVIDE;
-            }
-            else if(check_int(expression_pc)){
-                term += std::stoi(expression_pc);
-            }
-            else{
-                std::cout << "Unknown operation specified!\n" << std::endl;
-                exit(12);
-            }
-
-            if(end_of_term){
-                end_of_term = false;
-                if(prev_operation == ADD || prev_operation == SUBTRACT){
-                    expression_result += (prev_add_or_subtract) * term;
-                    prev_add_or_subtract = curr_add_or_subtract;
-                }
-                else if(prev_operation == MULTIPLY || prev_operation == DIVIDE){
-                    expression_result *= std::pow(term, prev_multiply_or_divide);
-                    prev_multiply_or_divide = curr_multiply_or_divide;
-                }
-                else{
-                    std::cout << "Unknown operation specified!\n" << std::endl;
-                    exit(12);
-                }
-                term = 0;
-                prev_operation = curr_operation;
+        if(constraint.where.math.variables.size() > 0){ // if there are variables, then check if that matches the column
+            if(curr_col != constraint.where.math.variables[0]){ // for now just assume that we are only using one variable, i.e. one column
+                return UNKNOWN;
             }
         }
 
-        if(prev_operation == ADD || prev_operation == SUBTRACT){
-            expression_result += (prev_add_or_subtract) * term;
-            prev_add_or_subtract = curr_add_or_subtract;
-        }
-        else if(prev_operation == MULTIPLY || prev_operation == DIVIDE){
-            expression_result *= std::pow(term, prev_multiply_or_divide);
-            prev_multiply_or_divide = curr_multiply_or_divide;
-        }
-        else{
-            std::cout << "Unknown operation specified!\n" << std::endl;
-            exit(12);
-        }
+        double expression_result = math_qmt(constraint, table_val);
 
         lhs_val.param_int = expression_result;
         lhs_val.type = INT;
