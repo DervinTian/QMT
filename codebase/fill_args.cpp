@@ -51,6 +51,21 @@ bool check_int(const std::string &value){
 }
 
 /*
+Custom function in order to check whether or not the value read in is of the INT type, formatted with, ex: 18.
+Arguments:
+    - value: Represents the read in value, always going to be read in as C++ string type, but could be of different type in the QMT table schema 
+*/
+bool check_double(const std::string &value){
+    try{
+        double value_double = std::stod(value);
+    }
+    catch(const std::invalid_argument& e){
+        return false;
+    }
+    return true;
+}
+
+/*
 Custom function in order to check whether or not the value read in is of the BOOL type, formatted with, ex: true.
 Arguments:
     - value: Represents the read in value, always going to be read in as C++ string type, but could be of different type in the QMT table schema 
@@ -191,15 +206,24 @@ void fill_where_args(const std::string &command, select_additional_args &args){
                     continue;
                 }
                 if(tmp[j] == ')'){
-                    if(math_mode && !finished_reading_math_expression){
-                        args.where.math.expression_pieces.push_back(attr);
+                    if(math_mode && !finished_reading_math_expression && mode == 0){
+                        args.where.left_math.expression_pieces.push_back(attr);
                         finished_reading_math_expression = true;
                         math_mode = false;
                         mode = 1;
                     }
-                    else if(math_mode){
-                        args.where.math.variables.push_back(attr);
+                    else if(math_mode && mode == 0){
+                        args.where.left_math.variables.push_back(attr);
                         mode = 1;
+                        math_mode = false;
+                    }
+                    else if(math_mode && !finished_reading_math_expression && mode == 2){
+                        args.where.right_math.expression_pieces.push_back(attr);
+                        finished_reading_math_expression = true;
+                        math_mode = false;
+                    }
+                    else if(math_mode && mode == 2){
+                        args.where.right_math.variables.push_back(attr);
                         math_mode = false;
                     }
                     else{
@@ -210,8 +234,8 @@ void fill_where_args(const std::string &command, select_additional_args &args){
                 }
 
                 if(tmp[j] == ','){
-                    if(math_mode && finished_reading_math_expression){
-                        args.where.math.variables.push_back(attr);
+                    if(math_mode && finished_reading_math_expression && mode == 0){
+                        args.where.left_math.variables.push_back(attr);
                     }
                     else if(mode == 0 && !math_mode){
                         args.where.lhs_expression = attr;
@@ -220,10 +244,17 @@ void fill_where_args(const std::string &command, select_additional_args &args){
                     else if(mode == 1 && !math_mode){
                         args.where.comparator = attr;
                     }
+                    else if(math_mode && finished_reading_math_expression && mode == 2){
+                        args.where.right_math.variables.push_back(attr);
+                    }
 
-                    if(!finished_reading_math_expression){
+                    if(!finished_reading_math_expression && mode == 0){
                         finished_reading_math_expression = true;
-                        args.where.math.expression_pieces.push_back(attr);
+                        args.where.left_math.expression_pieces.push_back(attr);
+                    }
+                    else if(!finished_reading_math_expression && mode == 2){
+                        finished_reading_math_expression = true;
+                        args.where.right_math.expression_pieces.push_back(attr);
                     }
                 }
                 else{
@@ -231,10 +262,11 @@ void fill_where_args(const std::string &command, select_additional_args &args){
                 }
             }
             if(math_mode && !finished_reading_math_expression){
-                args.where.math.expression_pieces.push_back(attr);
+                args.where.left_math.expression_pieces.push_back(attr);
             }
             if(attr == "MATH"){
                 math_mode = true;
+                finished_reading_math_expression = false;
                 args.where.lhs_expression = "";
                 args.where.type = MATH;
             }
@@ -390,7 +422,7 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
                     if(tmp[j] == ')'){
                         args.create.tbl_name = tbl_name;
                         time_go = false;
-                        break;
+                        return;
                     }
                     tbl_name += tmp[j];
                 }

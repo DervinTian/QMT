@@ -12,6 +12,8 @@ bool check_string(const std::string &value);
 
 bool check_int(const std::string &value);
 
+bool check_double(const std::string &value);
+
 bool check_bool(const std::string &value);
 
 bool check_char(const std::string &value);

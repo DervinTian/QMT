@@ -322,19 +322,19 @@ Arguments:
 Return:
     - double: the result of the expression as a decimal value to be used in future comparisons
 */
-double math_qmt(const select_additional_args &constraint, std::string table_val){
+double math_qmt(const std::vector<std::string> &expression_pieces, std::string table_val){
     std::cout << "Running math implementation\n";
 
-    select_additional_args constraint_copy = constraint;
+    std::vector<std::string> expression_copy = expression_pieces;
 
-    for(size_t i = 0; i < constraint_copy.where.math.expression_pieces.size(); ++i){
-        if(constraint_copy.where.math.expression_pieces[i] == "?"){
-            constraint_copy.where.math.expression_pieces[i] = table_val;
+    for(size_t i = 0; i < expression_copy.size(); ++i){
+        if(expression_copy[i] == "?"){
+            expression_copy[i] = table_val;
         }
     }
 
-    recursive_evaluate(constraint_copy.where.math.expression_pieces);
-    double result = std::stod(constraint_copy.where.math.expression_pieces[0]);
+    recursive_evaluate(expression_copy);
+    double result = std::stod(expression_copy[0]);
     std::cout << "Result is: " << result << std::endl;
 
     return result;
@@ -364,21 +364,28 @@ cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::
 
     // for now just assuming that the left-hand-side will represent the column name, no other operations for now
     if(constraint.where.type == MATH){
-        if(!check_int(table_val)){
+        if(!check_int(table_val) || !check_double(table_val)){
             return UNKNOWN;
         }
 
-        if(constraint.where.math.variables.size() > 0){ // if there are variables, then check if that matches the column
-            if(curr_col != constraint.where.math.variables[0]){ // for now just assume that we are only using one variable, i.e. one column
+        if(constraint.where.left_math.variables.size() > 0){ // if there are variables, then check if that matches the column
+            if(curr_col != constraint.where.left_math.variables[0]){ // for now just assume that we are only using one variable, i.e. one column
                 return UNKNOWN;
             }
         }
 
-        double expression_result = math_qmt(constraint, table_val);
+        double expression_result = math_qmt(constraint.where.left_math.expression_pieces, table_val);
 
-        lhs_val.param_int = expression_result;
-        lhs_val.type = INT;
-        if(!check_int(constraint.where.rhs_expression)){
+        if(curr_col_type == "int"){
+            lhs_val.param_int = expression_result;
+            lhs_val.type = INT;
+        }
+        else if(curr_col_type == "double"){
+            lhs_val.param_double = expression_result;
+            lhs_val.type = DOUBLE;
+        }
+
+        if(!check_int(constraint.where.rhs_expression) || !check_double(constraint.where.rhs_expression)){
             std::cout << "Unable to compare " << constraint.where.rhs_expression << " with a MATH expression!\n";
             exit(13);
         }

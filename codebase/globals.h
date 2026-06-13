@@ -33,6 +33,7 @@ enum math_modes{
 enum cmp_object_type{
     STRING,
     INT,
+    DOUBLE,
     BOOL,
     CHAR
 };
@@ -48,6 +49,7 @@ enum cmp_return_type{
 struct cmp_object{
     std::string param_string;
     int param_int;
+    double param_double;
     bool param_bool;
     char param_char;
 
@@ -66,7 +68,8 @@ struct where_args{
     std::string rhs_expression;
     std::string comparator;
 
-    math_args math;
+    math_args left_math;
+    math_args right_math;
 
     cmd_type type;
 };
@@ -169,7 +172,7 @@ extern int executing_line_num;
 // Additional keywords that can be used in multiple other operations, WHERE, VALUES, ...
 cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::string table_val, const select_additional_args &constraint);
 std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints);
-double math_qmt(const select_additional_args &constraint, std::string table_val);
+double math_qmt(const std::vector<std::string> &expression_pieces, std::string table_val);
 
 // Additional functions to be used
 bool valid_table(std::string table);
