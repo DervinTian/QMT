@@ -52,7 +52,7 @@ int main(int argc, char* argv[]){
         if(end_statement(script_line)){
             next_starting_line_num = i;
             if(!run_interpreter(prev_starting_line_num, i)){
-                std::cout << "Error in command ending at line " << i << std::endl;
+                std::cout << "Error in command ending at line " << i + 1 << std::endl;
                 exit(1);
             }
 

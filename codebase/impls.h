@@ -9,6 +9,8 @@
 
 #include "globals.h"
 
+// All the implementations of the keyword commands so far
+
 void select_qmt(const cmd_args &arguments);
 
 void insert_qmt(const cmd_args &arguments);

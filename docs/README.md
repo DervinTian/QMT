@@ -5,9 +5,15 @@ The docs portion of this repository holds the documentation for all of the keywo
 Each folder has a separate README.md file that shows how the QMT statement should be used, examples, as well as a demo of what it does.
 
 ## Implemented Keywords ##
-- CREATE
 - ADDCOL
-- INSERT
+- ALTER
+- CREATE
 - DELETE
+- FROM
+- INSERT
+- MATH
 - SELECT
+- SET
+- UPDATE
+- VALUES
 - WHERE

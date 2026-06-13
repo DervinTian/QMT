@@ -9,9 +9,8 @@
 
 #include "globals.h"
 
+// functions used for the interpreter
 void init_function_map();
-
 bool end_statement(std::string line);
-
 bool run_interpreter(int starting_line, int end_line);
 

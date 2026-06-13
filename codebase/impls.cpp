@@ -24,8 +24,9 @@ void select_qmt(const cmd_args &arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
 
+    // vector to hold all the different additional constraints, like WHERE clauses and stuff
     std::vector<select_additional_args> additional_args;
-    select_additional_args add_args;
+    select_additional_args add_args; // an auxillary variable to be used to populate the additional_args vector
 
     // For any additional lines after the select statement, such as WHERE
     for(int i = 0; i < arguments.select.additionals.size(); ++i){
@@ -33,6 +34,7 @@ void select_qmt(const cmd_args &arguments){
         std::string cmd_type;
         ss >> cmd_type;
         
+        // lower-case the command to not worry about any weird camel-casing cases
         for (char& c : cmd_type) {
             c = std::tolower(static_cast<unsigned char>(c));
         }
@@ -42,10 +44,11 @@ void select_qmt(const cmd_args &arguments){
             add_args.where.tbl_name = arguments.select.tbl_name;
         }
 
+        // for the command, in the future there will be more than just where, fill in those arguments
         fill_in_additional_cmds[cmd_type](arguments.select.additionals[i], add_args);
 
         additional_args.push_back(add_args);
-        executing_line_num++;
+        executing_line_num++; // essentially we just processed a where statement, so add an extra new line
     }
 
     // Check to make sure that all the names and paths are valid
@@ -81,7 +84,6 @@ void select_qmt(const cmd_args &arguments){
 
     std::vector<std::vector<std::string>> result_table;
     std::vector<std::vector<std::string>> result_schema;
-
     result_schema.push_back(std::vector<std::string>{});
     result_schema.push_back(std::vector<std::string>{});
 
@@ -135,6 +137,7 @@ void insert_qmt(const cmd_args &arguments){
     // Go through the values and create a comma-separated line for the values and insert into the table file
     std::ofstream tbl(table_path, std::ios::app);
 
+    // For the values that we want to insert, go through and write it all out to disk with a ',' delimiter
     for(size_t i = 0; i < arguments.insert.values.size(); ++i){
         tbl << arguments.insert.values[i];
         if(i != arguments.insert.values.size() - 1){
@@ -178,6 +181,7 @@ void create_qmt(const cmd_args &arguments){
     // Create a blank table in the database with the given table name
     std::ofstream tbl(table_path);
 
+    // If there is an additional parameter, which would be the FROM to specify a certain .csv file to read in from
     if(arguments.create.additionals.size() > 0){
         std::vector<select_additional_args> constraints;
         for(size_t x = 0; x < arguments.create.additionals.size(); ++x){
@@ -190,63 +194,69 @@ void create_qmt(const cmd_args &arguments){
             }
             select_additional_args add_args;
 
+            // Fill in the appropriate arguments for the arguments, FROM in this case but could be more in the future
             for(size_t x = 0; x < arguments.create.additionals.size(); ++x){
                 fill_in_additional_cmds[cmd_type](arguments.create.additionals[x], add_args);
             }
-
+            
+            // If we are executing a FROm command go here
             if(add_args.curr_type == FROM){
                 std::vector<std::vector<std::string>> in_memory_table;
                 std::string csv_tbl_name;
-                size_t pos = add_args.from.data_source.rfind('/');
-                for(size_t q = pos + 1; q < add_args.from.data_source.size() - 4; ++q){
+                size_t pos = add_args.from.data_source.rfind('/'); // find the last /, after that will be the table name
+                for(size_t q = pos + 1; q < add_args.from.data_source.size() - 4; ++q){ // omit the last .csv part of it
                     csv_tbl_name += add_args.from.data_source[q];
                 }
 
                 std::string schema_path = db_path + "/schemas/" + csv_tbl_name;
 
+                // There shouldn't be a schema since we are creating it from scratch
                 if(!fs::exists(schema_path)){
                     std::vector<std::string> column_names;
                     std::ifstream csv_file(add_args.from.data_source);
                     std::string header;
 
-                    std::getline(csv_file, header);
+                    std::getline(csv_file, header); // get the top line
                     std::stringstream header_ss(header);
                     std::string attr;
-                    if(add_args.from.header){
+                    if(add_args.from.header){ // if there is a header, that top line is the header
                         while(std::getline(header_ss, attr, ',')){
-                            column_names.push_back(attr);
+                            column_names.push_back(attr); // add that to our column names, representing our table schema
                         }
-
                     }
-                    else{
+                    else{ // if there was no header, we can use the top line to count how many columns we need to create
                         std::string tmp_col_name = "column";
                         int counter = 1;
                         while(std::getline(header_ss, attr, ',')){
-                            column_names.push_back(tmp_col_name + std::to_string(counter));
+                            column_names.push_back(tmp_col_name + std::to_string(counter)); // make temporary column names, like column1 if no header given
                             counter++;
                         }
                     }
+
+                    // Since csv files do not really come with the type, just assume everything is a string type as a default
                     std::string schema_line;
                     for(size_t col = 0; col < column_names.size(); ++col){
                         schema_line += column_names[col] + "_string,";
                     }
 
+                    // write out the newly created schema to the schema path
                     std::ofstream schema_file(schema_path);
                     schema_file << schema_line << '\n';
                     schema_file.close();
                 }
+                else{
+                    std::cout << "Schema for table " << csv_tbl_name << " already exists!" << std::endl;
+                    exit(18);
+                }
+
+                // Now that we have a schema, read in the table from the data source
                 in_memory_table = from_qmt(add_args.from.data_source, constraints);
 
-                if(in_memory_table.size() > 0){
-                    for (size_t col = 0; col < in_memory_table[0].size(); col++) {
-                        for (size_t row = 0; row < in_memory_table.size(); row++) {
-                            tbl << in_memory_table[row][col] << ',';
-                        }
-                        tbl << "\n";
-                    }
-                }
+                // Write the table according to what we read
+                write_table_to_disk(in_memory_table, arguments.create.tbl_name);
             }
 
+            // updating our PC essentially to move to the next line to interpret
             executing_line_num++;
         }
 
@@ -284,6 +294,7 @@ void update_qmt(const cmd_args &arguments){
         exit(3);
     }
 
+    // Similar to the SELECt keyword, need to keep track of what constraints there are on the UPDATE clause
     std::vector<select_additional_args> additional_args;
     select_additional_args add_args;
 
@@ -297,33 +308,37 @@ void update_qmt(const cmd_args &arguments){
             c = std::tolower(static_cast<unsigned char>(c));
         }
 
-        // Fill in the arguments for the specified keyword
+        // Fill in the arguments for the specified keyword, just where for now
         if(cmd_type == "where"){
             add_args.where.tbl_name = arguments.update.tbl_name;
         }
 
+        // fill in the appropriate commands for that keyword
         fill_in_additional_cmds[cmd_type](arguments.update.additionals[i], add_args);
         additional_args.push_back(add_args);
         executing_line_num++;
     }
 
+    // Read in the schema
     std::vector<std::vector<std::string>> schema = read_schema(schema_path);
 
-    // Create a mapping to find which attribute goes to which column index
+    // Create a mapping to find which attribute goes to which column index, used later to find column_names and column_types
     std::unordered_map<std::string, int> attr_to_idx_mapping;
     for(size_t i = 0; i < schema[0].size(); ++i){
         attr_to_idx_mapping[schema[0][i]] = i;
     }
 
-    // Read in the table into memory with the given constraints, to try and reduce on the memory load
+    // Read in the table the filtered results, so we know what to update
     std::vector<std::vector<std::string>> filetered_table = from_qmt(table_path, additional_args);
     std::unordered_set<std::string> filtered_results;
     std::unordered_set<size_t> columns_in_there;
 
+    // Read in the entire table into memory, so that we can change the exact value from the original table to the new value
     std::vector<std::vector<std::string>> whole_table = from_qmt(table_path, std::vector<select_additional_args>{});
     size_t num_cols = whole_table.size();
 
     if(filetered_table.size() > 0){
+        // create a hash for the column, so that we can trace which entry in the filtered table goes with the original table
         std::string search_key;
         for (size_t col = 0; col < filetered_table[0].size(); col++) {
             for (size_t row = 0; row < filetered_table.size(); row++) {
@@ -338,6 +353,7 @@ void update_qmt(const cmd_args &arguments){
         exit(10);
     }
 
+    // For the original table, find which of those columns correspond to the filtered columns and keep track of them in the columns_in_there set
     for (size_t col = 0; col < whole_table[0].size(); col++) {
         std::string table_search_key;
         for (size_t row = 0; row < whole_table.size(); row++) {
@@ -349,18 +365,19 @@ void update_qmt(const cmd_args &arguments){
         }
     }
 
+    // For the values that we want to set, go through and set them in the original whole table
     for(int i = 0; i < arguments.update.set_values.size(); ++i){
         std::string col_name = arguments.update.set_values[i].first;
         std::string new_val = arguments.update.set_values[i].second;
 
-        int attr_idx = attr_to_idx_mapping[col_name];
+        int attr_idx = attr_to_idx_mapping[col_name]; // find the index used to find the type and name
 
         std::string actual_type = schema[1][attr_idx];
 
-        bool types_match = check_value_against_type[actual_type](new_val);
+        bool types_match = check_value_against_type[actual_type](new_val); // make sure to check that the types actually match up so that we can actually update it properly
 
         if(types_match){
-            if(check_string(new_val) || check_char(new_val)){
+            if(check_string(new_val) || check_char(new_val)){ // if it is a string or a char, then just trim off the "", or the ''
                 new_val = new_val.substr(1, new_val.size() - 2);
             }
         }
@@ -368,6 +385,7 @@ void update_qmt(const cmd_args &arguments){
             std::cout << "Value " << new_val << " does not match the type for column " << col_name << std::endl;
         }
 
+        // go through the entire table, and for the rows that corresponded with the ones returned by the filter, change those values
         for(size_t x = 0; x < whole_table[attr_idx].size(); ++x){
             auto it = columns_in_there.find(x);
             if(it != columns_in_there.end()){
@@ -375,9 +393,10 @@ void update_qmt(const cmd_args &arguments){
             }
         }
 
-        executing_line_num++;
+        executing_line_num++; // update to run the next line after the FROM
     }
 
+    // write the result back to disk
     write_table_to_disk(whole_table, arguments.update.tbl_name);
 
     return;
@@ -414,6 +433,7 @@ void alter_qmt(const cmd_args &arguments){
         exit(3);
     }
 
+    // If we are renaming go here
     if(arguments.alter.rename == 1){
         std::cout << "Column to be modified is: " << arguments.alter.column_name << " and modify it to: " << arguments.alter.new_column_name << std::endl;
         // Create a schema if there doesn't exist one already
@@ -428,6 +448,7 @@ void alter_qmt(const cmd_args &arguments){
         std::vector<std::string> column_names;
         std::vector<std::string> column_types;
 
+        // Get the schema representing the column names and column_types
         std::getline(schema_file, schema_line);
         schema_file.close();
 
@@ -438,11 +459,12 @@ void alter_qmt(const cmd_args &arguments){
             std::string attr;
 
             int name_mode = 1;
+            // Go thorugh the line and get the individual column names and values, keeping track of them
             while(std::getline(underscore_separated_values, attr, '_')){
                 if(name_mode){
                     // attr represents the name of the column
                     if(attr == arguments.alter.column_name){
-                        column_names.push_back(arguments.alter.new_column_name);
+                        column_names.push_back(arguments.alter.new_column_name); // if we found the column to rename, then set the column name to that
                     }
                     else{
                         column_names.push_back(attr);
@@ -455,6 +477,7 @@ void alter_qmt(const cmd_args &arguments){
             }
         }
 
+        // write out the schema to disk
         std::ofstream schema_output_file(schema_path);
         for(size_t i = 0; i < column_names.size(); ++i){
             schema_output_file << column_names[i] + "_" + column_types[i] << ",";
@@ -462,7 +485,7 @@ void alter_qmt(const cmd_args &arguments){
 
         executing_line_num++; // update the execution line number
     }
-    else if(arguments.alter.modify == 1){
+    else if(arguments.alter.modify == 1){ // if we are modifying the column go here
         std::cout << "Column to be modified is: " << arguments.alter.column_name << " and modify it to: " << arguments.alter.new_column_type << std::endl;
          // Create a schema if there doesn't exist one already
         if(!fs::exists(schema_path)){
@@ -476,11 +499,13 @@ void alter_qmt(const cmd_args &arguments){
         std::vector<std::string> column_names;
         std::vector<std::string> column_types;
 
+        // read in the first line of the schema to find out the column types and names
         std::getline(schema_file, schema_line);
         schema_file.close();
 
         std::stringstream comma_separated_values(schema_line);
         std::string name_type;
+        // do the same process as above, keeping track of the types this time
         while(std::getline(comma_separated_values, name_type, ',')){
             std::stringstream underscore_separated_values(name_type);
             std::string attr;
@@ -490,8 +515,8 @@ void alter_qmt(const cmd_args &arguments){
             while(std::getline(underscore_separated_values, attr, '_')){
                 if(type_mode){
                     // attr represents the name of the column
-                    if(right_column){
-                        column_types.push_back(arguments.alter.new_column_type);
+                    if(right_column){ // if we find the right column name that we want to alter the type of
+                        column_types.push_back(arguments.alter.new_column_type); // keep track of the new type instead
                         right_column = false;
                     }
                     else{
@@ -499,7 +524,7 @@ void alter_qmt(const cmd_args &arguments){
                     }
                 }
                 else{
-                    if(attr == arguments.alter.column_name){
+                    if(attr == arguments.alter.column_name){ // we found the right column, next we just need to read in it's type accordingly
                         right_column = true;
                     }
                     column_names.push_back(attr);
@@ -508,6 +533,7 @@ void alter_qmt(const cmd_args &arguments){
             }
         }
 
+        // Write out the schema back to disk
         std::ofstream schema_output_file(schema_path);
         for(size_t i = 0; i < column_names.size(); ++i){
             schema_output_file << column_names[i] + "_" + column_types[i] << ",";
@@ -555,26 +581,30 @@ void add_col_qmt(const cmd_args &arguments){
     // construct the comma-delimited value string to be inserted into the database schema
     std::string line;
     std::ifstream schema(schema_path);
-    while(std::getline(schema, line));
+    std::getline(schema, line); // get the top line, representing the schema of the table
     schema.close();
 
-    line += arguments.add_cols.column_name + "_" + arguments.add_cols.type + ",";
+    line += arguments.add_cols.column_name + "_" + arguments.add_cols.type + ","; // add the new column to the line
 
-    std::ofstream out_schema(schema_path);
+    std::ofstream out_schema(schema_path); // write out the new schema to disk
     out_schema << line;
 
     out_schema.close();
-
+    
+    // In the case that we already have a populated table and then we want to add a new_col, just add in the default values for the new type for the existing rows
     int int_default_value = 0;
+    double double_default_value = 0.0;
     std::string str_default_value = "NULL";
     char char_default_value = '0';
     bool bool_default_value = false;
+    // Above I defined the default values for each of the types
 
     std::ifstream table(table_path);
     std::string table_line;
 
     std::vector<std::string> in_memory_table;
 
+    // Get all the existing lines of the table
     while(std::getline(table, table_line)){
         in_memory_table.push_back(table_line);
     }
@@ -582,6 +612,7 @@ void add_col_qmt(const cmd_args &arguments){
 
     std::ofstream output_table(table_path);
 
+    // go through the lines and append the default value to the end of the existing row in the table
     for(size_t i = 0; i < in_memory_table.size(); ++i){
         std::string curr_line = in_memory_table[i];
         if(arguments.add_cols.type == "string"){
@@ -589,6 +620,9 @@ void add_col_qmt(const cmd_args &arguments){
         }
         else if(arguments.add_cols.type == "int"){
             output_table << curr_line + std::to_string(int_default_value) + ",\n";
+        }
+        else if(arguments.add_cols.type == "double"){
+            output_table << curr_line + std::to_string(double_default_value) + ",\n";
         }
         else if(arguments.add_cols.type == "bool"){
             output_table << curr_line + std::to_string(bool_default_value) + ",\n";
@@ -639,6 +673,7 @@ void delete_qmt(const cmd_args &arguments){
     // If everything is valid, remove the schema and the data table from the database
     fs::remove(table_path);
 
+    // If we are deleting a table that also has a schema, make sure to delete that schema as well since its table doesn't exist anymore
     if(fs::exists(schema_path)){
         fs::remove(schema_path);
     }

@@ -8,6 +8,16 @@
 
 #include "globals.h"
 
+/*
+Function to run the '=' or "EQUAL" comparator
+
+Arguments:
+    - lhs: represents the left hand side value of the expression
+    - rhs: represents the right hand side value of the expression
+
+Return:
+    - returns a boolean value that represents the whether or not the two values are equal to each other
+*/
 bool comp_equal(const cmp_object &lhs, const cmp_object &rhs){
     if(lhs.type == STRING){
         return lhs.param_string == rhs.param_string;
@@ -28,6 +38,16 @@ bool comp_equal(const cmp_object &lhs, const cmp_object &rhs){
     return false;
 }
 
+/*
+Function to run the '<' or "LESS" comparator
+
+Arguments:
+    - lhs: represents the left hand side value of the expression
+    - rhs: represents the right hand side value of the expression
+
+Return:
+    - returns a boolean value that represents the whether or not the left value is less than the right value
+*/
 bool comp_less(const cmp_object &lhs, const cmp_object &rhs){
     if(lhs.type == STRING){
         return lhs.param_string < rhs.param_string;
@@ -48,6 +68,16 @@ bool comp_less(const cmp_object &lhs, const cmp_object &rhs){
     return false;
 }
 
+/*
+Function to run the '>' or "GREATER" comparator
+
+Arguments:
+    - lhs: represents the left hand side value of the expression
+    - rhs: represents the right hand side value of the expression
+
+Return:
+    - returns a boolean value that represents the whether or not the left value is greater than the right value
+*/
 bool comp_greater(const cmp_object &lhs, const cmp_object &rhs){
     if(lhs.type == STRING){
         return lhs.param_string > rhs.param_string;
@@ -68,6 +98,16 @@ bool comp_greater(const cmp_object &lhs, const cmp_object &rhs){
     return false;
 }
 
+/*
+Function to run the '<=' or "LESS_THAN_OR_EQUAL_TO" comparator
+
+Arguments:
+    - lhs: represents the left hand side value of the expression
+    - rhs: represents the right hand side value of the expression
+
+Return:
+    - returns a boolean value that represents the whether or not the left value is less than or equal to the right value
+*/
 bool comp_less_than_or_equal_to(const cmp_object &lhs, const cmp_object &rhs){
     if(lhs.type == STRING){
         return lhs.param_string <= rhs.param_string;
@@ -88,6 +128,16 @@ bool comp_less_than_or_equal_to(const cmp_object &lhs, const cmp_object &rhs){
     return false;
 }
 
+/*
+Function to run the '>=' or "GREATER_THAN_OR_EQUAL" comparator
+
+Arguments:
+    - lhs: represents the left hand side value of the expression
+    - rhs: represents the right hand side value of the expression
+
+Return:
+    - returns a boolean value that represents the whether or not the left value is greater than or equal to the right value
+*/
 bool comp_greater_than_or_equal_to(const cmp_object &lhs, const cmp_object &rhs){
     if(lhs.type == STRING){
         return lhs.param_string >= rhs.param_string;
@@ -108,6 +158,16 @@ bool comp_greater_than_or_equal_to(const cmp_object &lhs, const cmp_object &rhs)
     return false;
 }
 
+/*
+Function to run the '!=' or "NOT_EQUAL" comparator
+
+Arguments:
+    - lhs: represents the left hand side value of the expression
+    - rhs: represents the right hand side value of the expression
+
+Return:
+    - returns a boolean value that represents the whether or not the two values are not equal to each other
+*/
 bool comp_not_equal(const cmp_object &lhs, const cmp_object &rhs){
     if(lhs.type == STRING){
         return lhs.param_string != rhs.param_string;

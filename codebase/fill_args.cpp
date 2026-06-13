@@ -393,6 +393,8 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
     std::cout << "Create function added to the function map, can fill out args for create statements" << std::endl;
     args.cmd = CREATE;
 
+    bool additionals_time = false;
+
     for(size_t i = 0; i < command.size(); ++i){
         std::vector<std::string> line_content;
         std::string line = command[i];
@@ -403,7 +405,7 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
             continue;
         }
 
-        if(i > 0){
+        if(additionals_time){
             args.create.additionals.push_back(line);
         }
 
@@ -426,7 +428,8 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
                     if(tmp[j] == ')'){
                         args.create.tbl_name = tbl_name;
                         time_go = false;
-                        return;
+                        additionals_time = true;
+                        break;
                     }
                     tbl_name += tmp[j];
                 }
@@ -435,6 +438,12 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
     }
 }
 
+/*
+Function in order to fill in the arguments for FROM to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
 void fill_from_args(const std::string &command, select_additional_args &args){
     bool time_go = false;
     std::stringstream ss(command);
