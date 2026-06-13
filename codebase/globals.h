@@ -56,6 +56,12 @@ struct cmp_object{
     cmp_object_type type;
 };
 
+struct column_entry{
+    std::string column_name;
+    cmp_object_type column_type;
+    cmp_object column_value;
+};
+
 struct math_args{
     std::vector<std::string> expression_pieces;
     std::vector<std::string> variables;
@@ -170,9 +176,9 @@ extern int executing_line_num;
 
 
 // Additional keywords that can be used in multiple other operations, WHERE, VALUES, ...
-cmp_return_type where_qmt(std::string curr_col, std::string curr_col_type, std::string table_val, const select_additional_args &constraint);
+cmp_return_type where_qmt(const select_additional_args &constraint);
 std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints);
-double math_qmt(const std::vector<std::string> &expression_pieces, std::string table_val);
+double math_qmt(const std::vector<std::string> &expression_pieces);
 
 // Additional functions to be used
 bool valid_table(std::string table);

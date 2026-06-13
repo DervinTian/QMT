@@ -187,20 +187,12 @@ Arguments:
 Return:
     - double: the result of the expression as a decimal value to be used in future comparisons
 */
-double math_qmt(const select_additional_args &constraint, std::string table_val){
-    std::cout << "Running math implementation\n";
+double math_qmt(const std::vector<std::string> &expression_pieces){
 
-    select_additional_args constraint_copy = constraint;
+    std::vector<std::string> expression_copy = expression_pieces;
 
-    for(size_t i = 0; i < constraint_copy.where.math.expression_pieces.size(); ++i){
-        if(constraint_copy.where.math.expression_pieces[i] == "?"){
-            constraint_copy.where.math.expression_pieces[i] = table_val;
-        }
-    }
-
-    recursive_evaluate(constraint_copy.where.math.expression_pieces);
-    double result = std::stod(constraint_copy.where.math.expression_pieces[0]);
-    std::cout << "Result is: " << result << std::endl;
+    recursive_evaluate(expression_copy);
+    double result = std::stod(expression_copy[0]);
 
     return result;
 }

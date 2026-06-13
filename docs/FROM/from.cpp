@@ -59,6 +59,8 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
     int curr_attribute_counter = 0;
     int curr_col_idx = 0;
     std::string table_line;
+
+    // Go line by line and get each row of data
     while(std::getline(table_file, table_line)){
 
         std::stringstream table_ss(table_line);
@@ -76,7 +78,10 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
 
         std::string cmp_type;
         std::vector<std::string> buffer; // a temporary spot to hold the column values
+        std::unordered_map<std::string, cmp_object> expression_variables;
+        bool where_constraint = false;
 
+        // Parse through each value and update the expression variables and stuff for that row
         while(std::getline(table_ss, table_val, ',')){
 
             curr_col = column_names[curr_attribute_counter];
@@ -85,24 +90,99 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
             // result[curr_attribute_counter].push_back(table_val);
             curr_attribute_counter = (curr_attribute_counter + 1) % num_cols;
 
+            // go through the constraints, maybe more than one line like two WHERE clauses ANDED together
+            // and fill in the variables
             for(size_t x = 0; x < constraints.size(); ++x){
                 select_additional_args constraint = constraints[x]; // update to deal with all the constraints, not just one at a time
 
-                bool where_constraint = false;
+                // If math, fill it in for math things, otherwise just default to a regular compare between like the value type
+                if(constraint.where.type == MATH){
+                    
+                    // Want to fill in the variables, so see if it is in the left
+                    for(size_t i = 0; i < constraint.where.left_math.variables.size(); ++i){
+                        if(constraint.where.left_math.variables[i] == curr_col){
+                            cmp_object variable;
+                            if(curr_col_type == "int"){
+                                variable.param_int = std::stoi(table_val);
+                                variable.type = INT;
+                            }
+                            else if(curr_col_type == "double"){
+                                variable.param_double = std::stod(table_val);
+                                variable.type = DOUBLE;
+                            }
+                            expression_variables[curr_col] = variable;
+                            continue;
+                        }
+                    }
 
+                    // Want to fill in the variables, so see if it is in the right
+                    for(size_t i = 0; i < constraint.where.right_math.variables.size(); ++i){
+                        if(constraint.where.right_math.variables[i] == curr_col){
+                            cmp_object variable;
+                            if(curr_col_type == "int"){
+                                variable.param_int = std::stoi(table_val);
+                                variable.type = INT;
+                            }
+                            else if(curr_col_type == "double"){
+                                variable.param_double = std::stod(table_val);
+                                variable.type = DOUBLE;
+                            }
+                            expression_variables[curr_col] = variable;
+                            continue;
+                        }
+                    }
+                }
+                else{
+                    // otherwise, check to see if the lhs_expression or rhs_expression contains the column, then just add it to the variables map
+                    if(curr_col == constraint.where.lhs_expression || curr_col == constraint.where.rhs_expression){
+                        cmp_object variable;
+                        if(curr_col_type == "string"){
+                            variable.param_string = table_val;
+                            variable.type = STRING;
+                        }
+                        else if(curr_col_type == "bool"){
+                            if(table_val == "true"){
+                                variable.param_bool = true;
+                            }
+                            else{
+                                variable.param_bool = false;
+                            }
+                            variable.type = BOOL;
+                        }
+                        else if(curr_col_type == "char"){
+                            variable.param_char = table_val[0];
+                            variable.type = CHAR;
+                        }
+                        else if(curr_col_type == "int"){
+                            variable.param_int = std::stoi(table_val);
+                            variable.type = INT;
+                        }
+                        else if(curr_col_type == "double"){
+                            variable.param_double = std::stod(table_val);
+                            variable.type = DOUBLE;
+                        }
+                        expression_variables[curr_col] = variable;
+                    }
+                }
+
+                // idempodent operation to set whether or not the where operation is even there, since it will have a tbl_name for sure
                 if(constraint.where.tbl_name.size() > 0){
                     where_constraint = true;
                 }
                 
-                if(where_constraint){
-                    good_to_push = where_qmt(curr_col, curr_col_type, table_val, constraint);
-                    
-                    if(good_to_push == FALSE){
-                        push = false;
-                    }
-                }
             }
 
+        }
+
+        if(where_constraint){
+            for(size_t x = 0; x < constraints.size(); ++x){
+                select_additional_args constraint = constraints[x]; 
+                good_to_push = where_qmt(constraint, expression_variables);
+            
+                if(good_to_push == FALSE){
+                    push = false;
+                }
+            }
         }
 
         if(push){

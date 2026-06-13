@@ -25,7 +25,7 @@ int main(int argc, char* argv[]){
         exit(1);
     }
 
-    std::ifstream database_name("database_name.txt");
+    std::ifstream database_name("db_path");
     database_name >> db_path;
 
     init_function_map();

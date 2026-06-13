@@ -243,6 +243,7 @@ void fill_where_args(const std::string &command, select_additional_args &args){
                     }
                     else if(mode == 1 && !math_mode){
                         args.where.comparator = attr;
+                        mode = 2;
                     }
                     else if(math_mode && finished_reading_math_expression && mode == 2){
                         args.where.right_math.variables.push_back(attr);
@@ -261,8 +262,11 @@ void fill_where_args(const std::string &command, select_additional_args &args){
                     attr += tmp[j];
                 }
             }
-            if(math_mode && !finished_reading_math_expression){
+            if(math_mode && !finished_reading_math_expression && mode == 0){
                 args.where.left_math.expression_pieces.push_back(attr);
+            }
+            else if(math_mode && !finished_reading_math_expression && mode == 2){
+                args.where.right_math.expression_pieces.push_back(attr);
             }
             if(attr == "MATH"){
                 math_mode = true;
