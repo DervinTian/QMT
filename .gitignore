@@ -1,0 +1,7 @@
+qmt_db/
+.vscode/
+additional/
+codebase/testcases/
+codebase/.DS_Store
+codebase/query_result
+codebase/run.dSYM/
