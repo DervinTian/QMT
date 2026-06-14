@@ -24,14 +24,26 @@ void select_qmt(const cmd_args &arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
 
+    bool join = false;
+
     // vector to hold all the different additional constraints, like WHERE clauses and stuff
-    std::vector<select_additional_args> additional_args;
+    std::vector<select_additional_args> where_additional_args;
+    std::vector<select_additional_args> join_additional_args;
+
+    std::vector<std::string> additional_cmd;
     select_additional_args add_args; // an auxillary variable to be used to populate the additional_args vector
+
+    cmd_type curr_mode = NONE;
+    cmd_type prev_mode = NONE;
+
+    std::string prev_cmd_type;
+    std::string cmd_type;
 
     // For any additional lines after the select statement, such as WHERE
     for(int i = 0; i < arguments.select.additionals.size(); ++i){
+        prev_cmd_type = cmd_type;
+        prev_mode = curr_mode;
         std::stringstream ss(arguments.select.additionals[i]);
-        std::string cmd_type;
         ss >> cmd_type;
         
         // lower-case the command to not worry about any weird camel-casing cases
@@ -42,13 +54,61 @@ void select_qmt(const cmd_args &arguments){
         // Fill in the arguments for the specified keyword
         if(cmd_type == "where"){
             add_args.where.tbl_name = arguments.select.tbl_name;
+            curr_mode = WHERE;
+        }
+        else if(cmd_type == "join"){
+            add_args.join.left_tbl = arguments.select.tbl_name;
+            curr_mode = JOIN;
+            join = true;
         }
 
-        // for the command, in the future there will be more than just where, fill in those arguments
-        fill_in_additional_cmds[cmd_type](arguments.select.additionals[i], add_args);
+        if(prev_mode == curr_mode){
+            additional_cmd.push_back(arguments.select.additionals[i]);
+        }
+        else if(prev_mode == NONE){
+            additional_cmd.push_back(arguments.select.additionals[i]);
+        }
+        else if(prev_mode != curr_mode){
+            // for the command, in the future there will be more than just where, fill in those arguments
+            try{
+                fill_in_additional_cmds[prev_cmd_type](additional_cmd, add_args);
+                additional_cmd.clear();
 
-        additional_args.push_back(add_args);
+                if(prev_mode == WHERE){
+                    where_additional_args.push_back(add_args);
+                }
+                else if(prev_mode == JOIN){
+                    join_additional_args.push_back(add_args);
+                }
+            }
+            catch(...){
+                std::cout << "Command " << cmd_type << " is not defined!\n";
+                exit(20);
+            }
+            additional_cmd.push_back(arguments.select.additionals[i]);
+        }
+        else{
+            std::cout << "Command " << cmd_type << " is not defined!\n";
+            exit(20);
+        }
+
         executing_line_num++; // essentially we just processed a where statement, so add an extra new line
+    }
+
+    try{
+        fill_in_additional_cmds[prev_cmd_type](additional_cmd, add_args);
+        additional_cmd.clear();
+
+        if(prev_mode == WHERE){
+            where_additional_args.push_back(add_args);
+        }
+        else if(prev_mode == JOIN){
+            join_additional_args.push_back(add_args);
+        }
+    }
+    catch(const std::bad_function_call& e){}
+    catch(...){
+        std::cerr << "Caught exception" << std::endl;
     }
 
     // Check to make sure that all the names and paths are valid
@@ -79,29 +139,73 @@ void select_qmt(const cmd_args &arguments){
     }
 
     // Read in the table into memory with the given constraints, to try and reduce on the memory load
-    std::vector<std::vector<std::string>> table = from_qmt(table_path, additional_args);
-    executing_line_num++;
+    std::vector<std::vector<std::string>> table = from_qmt(table_path, where_additional_args);
+    executing_line_num++; // Update because we actually are executing the FROM keyword
 
-    std::vector<std::vector<std::string>> result_table;
-    std::vector<std::vector<std::string>> result_schema;
-    result_schema.push_back(std::vector<std::string>{});
-    result_schema.push_back(std::vector<std::string>{});
+    if(!join){
+        std::vector<std::vector<std::string>> result_table;
+        std::vector<std::vector<std::string>> result_schema;
+        result_schema.push_back(std::vector<std::string>{});
+        result_schema.push_back(std::vector<std::string>{});
 
-    // If they select all columns, then just display everything
-    if(arguments.select.sel_columns.size() == 1 && arguments.select.sel_columns[0] == "*"){
-        display_in_memory_table(table, schema);
-        return;
+        // If they select all columns, then just display everything
+        if(arguments.select.sel_columns.size() == 1 && arguments.select.sel_columns[0] == "*"){
+            display_in_memory_table(table, schema);
+            return;
+        }
+
+        // Otherwise, just show the columns that were specified
+        for(size_t i = 0; i < arguments.select.sel_columns.size(); ++i){
+            result_table.push_back(table[attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
+            result_schema[0].push_back(schema[0][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
+            result_schema[1].push_back(schema[1][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);;
+        }
+
+        // Print it out
+        display_in_memory_table(result_table, result_schema);
     }
+    else{
 
-    // Otherwise, just show the columns that were specified
-    for(size_t i = 0; i < arguments.select.sel_columns.size(); ++i){
-        result_table.push_back(table[attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
-        result_schema[0].push_back(schema[0][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
-        result_schema[1].push_back(schema[1][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);;
+        std::string join_result_schema;
+        std::vector<std::vector<std::string>> join_result = join_qmt(join_additional_args, table, schema, join_result_schema);
+
+        std::vector<std::vector<std::string>> join_schema;
+        std::vector<std::string> schema_components;
+        std::vector<std::string> schema_types;
+        std::vector<std::string> schema_names;
+        std::stringstream schema_ss(join_result_schema);
+        std::string token;
+        
+        // go through the schema, and delimit by the ',' character
+        while(std::getline(schema_ss, token, ',')){
+            if(token.size() > 0){
+                schema_components.push_back(token);
+            }
+        }
+        
+        // go through the tokens that we just read in, like ColumnName_ColumnType
+        for(size_t k = 0; k < schema_components.size(); ++k){
+            std::stringstream temp_ss(schema_components[k]);
+
+            std::string first, second;
+
+            // delimit on the '_' character
+            std::getline(temp_ss, first, '_');
+            std::getline(temp_ss, second, '_');
+
+            // add that to the names and the types of the table
+            schema_names.push_back(first);
+            schema_types.push_back(second);
+        }
+
+        // append those to our result:
+        // [0]: column names
+        // [1]: column_types
+        join_schema.push_back(schema_names);
+        join_schema.push_back(schema_types);
+
+        display_in_memory_table(join_result, join_schema);
     }
-
-    // Print it out
-    display_in_memory_table(result_table, result_schema);
 
     return;
 
@@ -194,10 +298,7 @@ void create_qmt(const cmd_args &arguments){
             }
             select_additional_args add_args;
 
-            // Fill in the appropriate arguments for the arguments, FROM in this case but could be more in the future
-            for(size_t x = 0; x < arguments.create.additionals.size(); ++x){
-                fill_in_additional_cmds[cmd_type](arguments.create.additionals[x], add_args);
-            }
+            fill_in_additional_cmds[cmd_type](arguments.create.additionals, add_args);
             
             // If we are executing a FROm command go here
             if(add_args.curr_type == FROM){
@@ -296,12 +397,19 @@ void update_qmt(const cmd_args &arguments){
 
     // Similar to the SELECt keyword, need to keep track of what constraints there are on the UPDATE clause
     std::vector<select_additional_args> additional_args;
+    std::vector<std::string> aux_additional_args;
     select_additional_args add_args;
+
+    cmd_type prev_mode = NONE;
+    cmd_type curr_mode = NONE;
+
+    std::string prev_cmd_type;
+    std::string cmd_type;
 
     // For any additional lines after the select statement, such as WHERE
     for(int i = 0; i < arguments.update.additionals.size(); ++i){
+        prev_mode = curr_mode;
         std::stringstream ss(arguments.update.additionals[i]);
-        std::string cmd_type;
         ss >> cmd_type;
         
         for (char& c : cmd_type) {
@@ -311,12 +419,32 @@ void update_qmt(const cmd_args &arguments){
         // Fill in the arguments for the specified keyword, just where for now
         if(cmd_type == "where"){
             add_args.where.tbl_name = arguments.update.tbl_name;
+            curr_mode = WHERE;
         }
 
-        // fill in the appropriate commands for that keyword
-        fill_in_additional_cmds[cmd_type](arguments.update.additionals[i], add_args);
-        additional_args.push_back(add_args);
+        if(prev_mode == curr_mode){
+            aux_additional_args.push_back(arguments.update.additionals[i]);
+        }
+        else if(prev_mode == NONE){
+            aux_additional_args.push_back(arguments.update.additionals[i]);
+        }
+        else{
+            // fill in the appropriate commands for that keyword
+            fill_in_additional_cmds[prev_cmd_type](aux_additional_args, add_args);
+            aux_additional_args.clear();
+
+            if(curr_mode == WHERE){
+                additional_args.push_back(add_args);
+            }
+            aux_additional_args.push_back(arguments.select.additionals[i]);
+        }
+
         executing_line_num++;
+    }
+
+    fill_in_additional_cmds[cmd_type](aux_additional_args, add_args);
+    if(curr_mode == WHERE){
+        additional_args.push_back(add_args);
     }
 
     // Read in the schema

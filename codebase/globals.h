@@ -19,6 +19,7 @@ enum cmd_type{
     WHERE,
     FROM,
     MATH,
+    JOIN,
     NONE
 };
 
@@ -43,6 +44,14 @@ enum cmp_return_type{
     TRUE,
     FALSE, 
     UNKNOWN
+};
+
+enum join_types{
+    LEFT,
+    RIGHT,
+    INNER,
+    OUTER,
+    CROSS
 };
 
 // object to be used in the comparisons
@@ -85,10 +94,19 @@ struct from_args{
     int header = 0;
 };
 
+struct join_args{
+    std::string left_tbl;
+    std::string right_tbl;
+
+    where_args on;
+    join_types join_type;
+};
+
 // Data structure to hold additional arguments as constraints
 struct select_additional_args{
     where_args where;
     from_args from;
+    join_args join;
 
     cmd_type curr_type;
 };
@@ -165,7 +183,7 @@ struct cmd_args{
 
 // Global variables to be used
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, cmd_args&)>> fill_in_cmd;
-extern std::unordered_map<std::string, std::function<void(const std::string&, select_additional_args&)>> fill_in_additional_cmds;
+extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, select_additional_args&)>> fill_in_additional_cmds;
 extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;
 extern std::unordered_map<std::string, std::function<void(const select_additional_args&)>> additional_cmd_impls;
 extern std::unordered_map<std::string, std::function<bool(const std::string&)>> check_value_against_type;
@@ -179,6 +197,7 @@ extern int executing_line_num;
 cmp_return_type where_qmt(const select_additional_args &constraint);
 std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints);
 double math_qmt(const std::vector<std::string> &expression_pieces);
+std::vector<std::vector<std::string>> join_qmt(const std::vector<select_additional_args> &constraints, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema);
 
 // Additional functions to be used
 bool valid_table(std::string table);

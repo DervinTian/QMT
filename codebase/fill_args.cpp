@@ -181,98 +181,103 @@ Arguments:
     - command: A string of QMT lines/commands
     - args: The arguments to fill in, later to be passed into the implementation
 */
-void fill_where_args(const std::string &command, select_additional_args &args){
+void fill_where_args(const std::vector<std::string> &command, select_additional_args &args){
     std::cout << "Where function added to the function map, can fill out args for where statements" << std::endl;
-    std::stringstream ss(command);
-    std::string tmp;
 
-    bool go_time = false;
-    int mode = 0; // mode 0 is for reading in lhs expression, 1 is for comparator, and after that is the mode can only be for the rhs expression
-    bool math_mode = false;
-    bool finished_reading_math_expression = false;
+    for(size_t i = 0; i < command.size(); ++i){
+        std::string line = command[i];
+        std::stringstream ss(line);
+        std::string tmp;
 
-    while(ss >> tmp){
-        if(tmp == "WHERE"){
-            go_time = true;
-            args.curr_type = WHERE;
-            continue;
-        }
+        bool go_time = false;
+        int mode = 0; // mode 0 is for reading in lhs expression, 1 is for comparator, and after that is the mode can only be for the rhs expression
+        bool math_mode = false;
+        bool finished_reading_math_expression = false;
 
-        // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
-        if(go_time){
-            std::string attr;
-            for(size_t j = 0; j < tmp.size(); ++j){
-                if(tmp[j] == '('){
-                    continue;
-                }
-                if(tmp[j] == ')'){
-                    if(math_mode && !finished_reading_math_expression && mode == 0){
-                        args.where.left_math.expression_pieces.push_back(attr);
-                        finished_reading_math_expression = true;
-                        math_mode = false;
-                        mode = 1;
+        while(ss >> tmp){
+            if(tmp == "WHERE"){
+                go_time = true;
+                args.curr_type = WHERE;
+                continue;
+            }
+
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
+            if(go_time){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
                     }
-                    else if(math_mode && mode == 0){
-                        args.where.left_math.variables.push_back(attr);
-                        mode = 1;
-                        math_mode = false;
+                    if(tmp[j] == ')'){
+                        if(math_mode && !finished_reading_math_expression && mode == 0){
+                            args.where.left_math.expression_pieces.push_back(attr);
+                            finished_reading_math_expression = true;
+                            math_mode = false;
+                            mode = 1;
+                        }
+                        else if(math_mode && mode == 0){
+                            args.where.left_math.variables.push_back(attr);
+                            mode = 1;
+                            math_mode = false;
+                        }
+                        else if(math_mode && !finished_reading_math_expression && mode == 2){
+                            args.where.right_math.expression_pieces.push_back(attr);
+                            finished_reading_math_expression = true;
+                            math_mode = false;
+                        }
+                        else if(math_mode && mode == 2){
+                            args.where.right_math.variables.push_back(attr);
+                            math_mode = false;
+                        }
+                        else{
+                            args.where.rhs_expression = attr;
+                            go_time = false;
+                        }
+                        break;
                     }
-                    else if(math_mode && !finished_reading_math_expression && mode == 2){
-                        args.where.right_math.expression_pieces.push_back(attr);
-                        finished_reading_math_expression = true;
-                        math_mode = false;
-                    }
-                    else if(math_mode && mode == 2){
-                        args.where.right_math.variables.push_back(attr);
-                        math_mode = false;
+
+                    if(tmp[j] == ','){
+                        if(math_mode && finished_reading_math_expression && mode == 0){
+                            args.where.left_math.variables.push_back(attr);
+                        }
+                        else if(mode == 0 && !math_mode){
+                            args.where.lhs_expression = attr;
+                            mode = 1;
+                        }
+                        else if(mode == 1 && !math_mode){
+                            args.where.comparator = attr;
+                            mode = 2;
+                        }
+                        else if(math_mode && finished_reading_math_expression && mode == 2){
+                            args.where.right_math.variables.push_back(attr);
+                        }
+
+                        if(!finished_reading_math_expression && mode == 0){
+                            finished_reading_math_expression = true;
+                            args.where.left_math.expression_pieces.push_back(attr);
+                        }
+                        else if(!finished_reading_math_expression && mode == 2){
+                            finished_reading_math_expression = true;
+                            args.where.right_math.expression_pieces.push_back(attr);
+                        }
                     }
                     else{
-                        args.where.rhs_expression = attr;
-                        go_time = false;
-                    }
-                    break;
-                }
-
-                if(tmp[j] == ','){
-                    if(math_mode && finished_reading_math_expression && mode == 0){
-                        args.where.left_math.variables.push_back(attr);
-                    }
-                    else if(mode == 0 && !math_mode){
-                        args.where.lhs_expression = attr;
-                        mode = 1;
-                    }
-                    else if(mode == 1 && !math_mode){
-                        args.where.comparator = attr;
-                        mode = 2;
-                    }
-                    else if(math_mode && finished_reading_math_expression && mode == 2){
-                        args.where.right_math.variables.push_back(attr);
-                    }
-
-                    if(!finished_reading_math_expression && mode == 0){
-                        finished_reading_math_expression = true;
-                        args.where.left_math.expression_pieces.push_back(attr);
-                    }
-                    else if(!finished_reading_math_expression && mode == 2){
-                        finished_reading_math_expression = true;
-                        args.where.right_math.expression_pieces.push_back(attr);
+                        attr += tmp[j];
                     }
                 }
-                else{
-                    attr += tmp[j];
+                if(math_mode && !finished_reading_math_expression && mode == 0){
+                    args.where.left_math.expression_pieces.push_back(attr);
                 }
-            }
-            if(math_mode && !finished_reading_math_expression && mode == 0){
-                args.where.left_math.expression_pieces.push_back(attr);
-            }
-            else if(math_mode && !finished_reading_math_expression && mode == 2){
-                args.where.right_math.expression_pieces.push_back(attr);
-            }
-            if(attr == "MATH"){
-                math_mode = true;
-                finished_reading_math_expression = false;
-                args.where.lhs_expression = "";
-                args.where.type = MATH;
+                else if(math_mode && !finished_reading_math_expression && mode == 2){
+                    args.where.right_math.expression_pieces.push_back(attr);
+                }
+                if(attr == "MATH"){
+                    math_mode = true;
+                    finished_reading_math_expression = false;
+                    args.where.lhs_expression = "";
+                    args.where.rhs_expression = "";
+                    args.where.type = MATH;
+                }
             }
         }
     }
@@ -444,41 +449,45 @@ Arguments:
     - command: A string of QMT lines/commands
     - args: The arguments to fill in, later to be passed into the implementation
 */
-void fill_from_args(const std::string &command, select_additional_args &args){
-    bool time_go = false;
-    std::stringstream ss(command);
-    std::string tmp;
-    std::string data_source;
-    
-    while(ss >> tmp){
-        if(tmp == "FROM"){
-            time_go = true;
-            args.curr_type = FROM;
-            continue;
-        }
+void fill_from_args(const std::vector<std::string> &command, select_additional_args &args){
+    for(size_t i = 0; i < command.size(); ++i){
+        std::string line = command[i];
 
-        if(tmp == "NO_HEADER"){
-            args.from.header = 0;
-        }
-        else if(tmp == "HEADER"){
-            args.from.header = 1;
-        }
+        bool time_go = false;
+        std::stringstream ss(line);
+        std::string tmp;
+        std::string data_source;
         
-        // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
-        if(time_go){
-            for(size_t j = 0; j < tmp.size(); ++j){
-                if(tmp[j] == '('){
-                    continue;
-                }
-                if(tmp[j] == ')'){
-                    args.from.data_source = data_source;
-                    time_go = false;
-                    break;
-                }
-                data_source += tmp[j];
+        while(ss >> tmp){
+            if(tmp == "FROM"){
+                time_go = true;
+                args.curr_type = FROM;
+                continue;
             }
-        }   
 
+            if(tmp == "NO_HEADER"){
+                args.from.header = 0;
+            }
+            else if(tmp == "HEADER"){
+                args.from.header = 1;
+            }
+            
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
+            if(time_go){
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.from.data_source = data_source;
+                        time_go = false;
+                        break;
+                    }
+                    data_source += tmp[j];
+                }
+            }   
+
+        }
     }
 }
 
@@ -771,6 +780,91 @@ void fill_delete_args(const std::vector<std::string> &command, cmd_args &args){
                     tbl_name += tmp[j];
                 }
             }
+        }
+    }
+}
+
+void fill_join_args(const std::vector<std::string> &command, select_additional_args &args){
+    std::cout << "Join function added to the function map, can fill out args for join statements" << std::endl;
+
+    bool time_go = false;
+    bool on_time = false;
+
+    for(size_t i = 0; i < command.size(); ++i){
+        std::vector<std::string> line_content;
+        std::string line = command[i];
+
+        int mode = 0;
+
+        if(line.size() == 0){
+            continue;
+        }
+
+        std::stringstream ss(line);
+        std::string tmp;
+        std::string tbl_name;
+
+        while(ss >> tmp){
+            if(tmp == "ON"){
+                continue;
+            }
+            else if(tmp == "JOIN"){
+                time_go = true;
+                ss >> tmp;
+                if(tmp == "LEFT"){
+                    args.join.join_type = LEFT;
+                    continue;
+                }
+                else if(tmp == "INNER"){
+                    args.join.join_type = INNER;
+                    continue;
+                }
+            }
+
+            if(on_time){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.join.on.rhs_expression = attr;
+                        time_go = false;
+                        on_time = true;
+                        break;
+                    }
+
+                    if(tmp[j] == ','){
+                        if(mode == 0){
+                            args.join.on.lhs_expression = attr;
+                            mode = 1;
+                        }
+                        else if(mode == 1){
+                            args.join.on.comparator = attr;
+                            mode = 2;
+                        }
+                    }
+                    attr += tmp[j];
+
+                }
+            }
+
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
+            if(time_go){
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.join.right_tbl = tbl_name;
+                        time_go = false;
+                        on_time = true;
+                        break;
+                    }
+                    tbl_name += tmp[j];
+                }
+            } 
+            
         }
     }
 }
