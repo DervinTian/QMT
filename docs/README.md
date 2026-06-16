@@ -17,3 +17,4 @@ Each folder has a separate README.md file that shows how the QMT statement shoul
 - UPDATE
 - VALUES
 - WHERE
+- JOIN
