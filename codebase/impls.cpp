@@ -720,11 +720,6 @@ void add_col_qmt(const cmd_args &arguments){
     out_schema.close();
     
     // In the case that we already have a populated table and then we want to add a new_col, just add in the default values for the new type for the existing rows
-    int int_default_value = 0;
-    double double_default_value = 0.0;
-    std::string str_default_value = "NULL";
-    char char_default_value = '0';
-    bool bool_default_value = false;
     // Above I defined the default values for each of the types
 
     std::ifstream table(table_path);

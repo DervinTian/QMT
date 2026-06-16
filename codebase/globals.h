@@ -191,6 +191,11 @@ extern std::unordered_map<std::string, std::function<bool(const cmp_object&, con
 extern std::string db_path;
 extern std::vector<std::string> in_memory_script;
 extern int executing_line_num;
+extern int int_default_value;
+extern double double_default_value;
+extern std::string str_default_value;
+extern char char_default_value;
+extern bool bool_default_value;
 
 
 // Additional keywords that can be used in multiple other operations, WHERE, VALUES, ...
@@ -204,5 +209,6 @@ bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
 std::string trim_string(std::string value);
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
+std::vector<std::vector<std::string>> vectorize_schema(const std::string &schema_string);
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema);
 void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std::string tbl_name);
