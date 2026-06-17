@@ -11,10 +11,12 @@ Each folder has a separate README.md file that shows how the QMT statement shoul
 - DELETE
 - FROM
 - INSERT
+- JOIN
 - MATH
+- ON
+- ORDER
 - SELECT
 - SET
 - UPDATE
 - VALUES
 - WHERE
-- JOIN
