@@ -784,6 +784,12 @@ void fill_delete_args(const std::vector<std::string> &command, cmd_args &args){
     }
 }
 
+/*
+Function in order to fill in the arguments JOIN to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
 void fill_join_args(const std::vector<std::string> &command, select_additional_args &args){
     std::cout << "Join function added to the function map, can fill out args for join statements" << std::endl;
 
@@ -869,3 +875,65 @@ void fill_join_args(const std::vector<std::string> &command, select_additional_a
     }
 }
 
+/*
+Function in order to fill in the arguments ORDER BY to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
+void fill_order_args(const std::vector<std::string> &command, select_additional_args &args){
+    std::cout << "Order function added to the function map, can fill out args for Order statements" << std::endl;
+
+    for(size_t i = 0; i < command.size(); ++i){
+        std::vector<std::string> line_content;
+        std::string line = command[i];
+
+        bool time_go = false;
+
+        if(line.size() == 0){
+            continue;
+        }
+
+        std::stringstream ss(line);
+        std::string tmp;
+        
+        while(ss >> tmp){
+            if(tmp == "ORDER"){
+                time_go = true;
+                continue;
+            }
+            
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
+            if(time_go){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    else if(tmp[j] == ')'){
+                        if(attr == "DESC"){
+                            args.order.sort_direction = DESC;
+                        }
+                        else if(attr == "ASC"){
+                            args.order.sort_direction = ASC;
+                        }
+                        else{
+                            std::cout << "Unknown sort direction for ORDER: " << attr << std::endl;
+                            exit(20);
+                        }
+                        time_go = false;
+                        attr.clear();
+                        break;
+                    }
+                    else if(tmp[j] == ','){
+                        args.order.col = attr;
+                        attr.clear();
+                        continue;
+                    }
+
+                    attr += tmp[j];
+                }
+            }
+        }
+    }
+}

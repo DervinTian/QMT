@@ -26,6 +26,7 @@ void init_function_map(){
     fill_in_additional_cmds["where"] = fill_where_args;
     fill_in_additional_cmds["from"] = fill_from_args;
     fill_in_additional_cmds["join"] = fill_join_args;
+    fill_in_additional_cmds["order"] = fill_order_args;
 
     cmd_impls["select"] = select_qmt;
     cmd_impls["insert"] = insert_qmt;

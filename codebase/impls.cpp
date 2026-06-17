@@ -25,10 +25,12 @@ void select_qmt(const cmd_args &arguments){
     executing_line_num++; // update the execution line number
 
     bool join = false;
+    bool order = false;
 
     // vector to hold all the different additional constraints, like WHERE clauses and stuff
     std::vector<select_additional_args> where_additional_args;
     std::vector<select_additional_args> join_additional_args;
+    std::vector<select_additional_args> order_additional_args;
 
     std::vector<std::string> additional_cmd;
     select_additional_args add_args; // an auxillary variable to be used to populate the additional_args vector
@@ -61,6 +63,10 @@ void select_qmt(const cmd_args &arguments){
             curr_mode = JOIN;
             join = true;
         }
+        else if(cmd_type == "order"){
+            curr_mode = ORDER;
+            order = true;
+        }
 
         if(prev_mode == curr_mode){
             additional_cmd.push_back(arguments.select.additionals[i]);
@@ -80,6 +86,9 @@ void select_qmt(const cmd_args &arguments){
                 else if(prev_mode == JOIN){
                     join_additional_args.push_back(add_args);
                 }
+                else if(prev_mode == ORDER){
+                    order_additional_args.push_back(add_args);
+                }
             }
             catch(...){
                 std::cout << "Command " << cmd_type << " is not defined!\n";
@@ -96,15 +105,20 @@ void select_qmt(const cmd_args &arguments){
     }
 
     try{
-        fill_in_additional_cmds[prev_cmd_type](additional_cmd, add_args);
-        additional_cmd.clear();
 
-        if(prev_mode == WHERE){
+        if(curr_mode == WHERE){
+            fill_in_additional_cmds["where"](additional_cmd, add_args);
             where_additional_args.push_back(add_args);
         }
-        else if(prev_mode == JOIN){
+        else if(curr_mode == JOIN){
+            fill_in_additional_cmds["join"](additional_cmd, add_args);
             join_additional_args.push_back(add_args);
         }
+        else if(curr_mode == ORDER){
+            fill_in_additional_cmds["order"](additional_cmd, add_args);
+            order_additional_args.push_back(add_args);
+        }
+        additional_cmd.clear();
     }
     catch(const std::bad_function_call& e){}
     catch(...){
@@ -142,14 +156,18 @@ void select_qmt(const cmd_args &arguments){
     std::vector<std::vector<std::string>> table = from_qmt(table_path, where_additional_args);
     executing_line_num++; // Update because we actually are executing the FROM keyword
 
-    if(!join){
-        std::vector<std::vector<std::string>> result_table;
-        std::vector<std::vector<std::string>> result_schema;
+    std::vector<std::vector<std::string>> result_table;
+    std::vector<std::vector<std::string>> result_schema;
+
+    if(!join){ 
         result_schema.push_back(std::vector<std::string>{});
         result_schema.push_back(std::vector<std::string>{});
 
         // If they select all columns, then just display everything
         if(arguments.select.sel_columns.size() == 1 && arguments.select.sel_columns[0] == "*"){
+            if(order){
+                table = order_qmt(order_additional_args, table, schema);
+            }
             display_in_memory_table(table, schema);
             return;
         }
@@ -161,51 +179,21 @@ void select_qmt(const cmd_args &arguments){
             result_schema[1].push_back(schema[1][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);;
         }
 
-        // Print it out
-        display_in_memory_table(result_table, result_schema);
     }
     else{
 
         std::string join_result_schema;
-        std::vector<std::vector<std::string>> join_result = join_qmt(join_additional_args, table, schema, join_result_schema);
+        result_table = join_qmt(join_additional_args, table, schema, join_result_schema);
 
-        std::vector<std::vector<std::string>> join_schema;
-        std::vector<std::string> schema_components;
-        std::vector<std::string> schema_types;
-        std::vector<std::string> schema_names;
-        std::stringstream schema_ss(join_result_schema);
-        std::string token;
-        
-        // go through the schema, and delimit by the ',' character
-        while(std::getline(schema_ss, token, ',')){
-            if(token.size() > 0){
-                schema_components.push_back(token);
-            }
-        }
-        
-        // go through the tokens that we just read in, like ColumnName_ColumnType
-        for(size_t k = 0; k < schema_components.size(); ++k){
-            std::stringstream temp_ss(schema_components[k]);
+        result_schema = vectorize_schema(join_result_schema);
 
-            std::string first, second;
-
-            // delimit on the '_' character
-            std::getline(temp_ss, first, '_');
-            std::getline(temp_ss, second, '_');
-
-            // add that to the names and the types of the table
-            schema_names.push_back(first);
-            schema_types.push_back(second);
-        }
-
-        // append those to our result:
-        // [0]: column names
-        // [1]: column_types
-        join_schema.push_back(schema_names);
-        join_schema.push_back(schema_types);
-
-        display_in_memory_table(join_result, join_schema);
     }
+
+    if(order){
+        result_table = order_qmt(order_additional_args, result_table, result_schema);
+    }
+    // Print it out
+    display_in_memory_table(result_table, result_schema);
 
     return;
 

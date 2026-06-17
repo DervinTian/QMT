@@ -869,6 +869,47 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
 }
 
 /*
+Helper function to turn a vector of strings like val1,val2,val3, ... into an in-memory table
+Arguments:
+    - arguments: contains left tbl_name, right tbl_name, the type of join, and the constraint on which to join
+
+Returns:
+    - an in-memory table that represents the result of the join, where only rows that are in both tables that are joined together are kept, no null values at all
+*/
+std::vector<std::vector<std::string>> vectorize_csv(const std::vector<std::string> &csv_format_table){
+    
+    std::vector<std::vector<std::string>> result_table;
+    int num_attributes = 0;
+
+    if(csv_format_table.size() > 0){
+        std::stringstream ss(csv_format_table[0]);
+        std::string token;
+        while(std::getline(ss, token, ',')){
+            num_attributes++;
+        }
+    }
+    else{
+        return result_table;
+    }
+
+    for(int j = 0; j < num_attributes; ++j){
+        result_table.push_back(std::vector<std::string>{});
+    }
+
+    int attr_idx = 0;
+    for(size_t j = 0; j < csv_format_table.size(); ++j){
+        std::stringstream ss(csv_format_table[j]);
+        std::string token;
+        while(std::getline(ss, token, ',')){
+            result_table[attr_idx].push_back(token);
+            attr_idx = (attr_idx + 1) % num_attributes;
+        }
+    }
+
+    return result_table;
+}
+
+/*
 Helper function to run an inner join
 Arguments:
     - arguments: contains left tbl_name, right tbl_name, the type of join, and the constraint on which to join
@@ -946,31 +987,7 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_additional_arg
         }
     }
 
-    num_attributes = 0;
-    if(csv_format_join_results.size() > 0){
-        std::stringstream ss(csv_format_join_results[0]);
-        std::string token;
-        while(std::getline(ss, token, ',')){
-            num_attributes++;
-        }
-    }
-    else{
-        return join_result;
-    }
-
-    for(int j = 0; j < num_attributes; ++j){
-        join_result.push_back(std::vector<std::string>{});
-    }
-
-    int attr_idx = 0;
-    for(size_t j = 0; j < csv_format_join_results.size(); ++j){
-        std::stringstream ss(csv_format_join_results[j]);
-        std::string token;
-        while(std::getline(ss, token, ',')){
-            join_result[attr_idx].push_back(token);
-            attr_idx = (attr_idx + 1) % num_attributes;
-        }
-    }
+    join_result = vectorize_csv(csv_format_join_results);
 
     return join_result;
 
@@ -1082,31 +1099,7 @@ std::vector<std::vector<std::string>> left_join_qmt(const select_additional_args
         }
     }
 
-    num_attributes = 0;
-    if(csv_format_join_results.size() > 0){
-        std::stringstream ss(csv_format_join_results[0]);
-        std::string token;
-        while(std::getline(ss, token, ',')){
-            num_attributes++;
-        }
-    }
-    else{
-        return join_result;
-    }
-
-    for(int j = 0; j < num_attributes; ++j){
-        join_result.push_back(std::vector<std::string>{});
-    }
-
-    int attr_idx = 0;
-    for(size_t j = 0; j < csv_format_join_results.size(); ++j){
-        std::stringstream ss(csv_format_join_results[j]);
-        std::string token;
-        while(std::getline(ss, token, ',')){
-            join_result[attr_idx].push_back(token);
-            attr_idx = (attr_idx + 1) % num_attributes;
-        }
-    }
+    join_result = vectorize_csv(csv_format_join_results);
 
     return join_result;
 }
@@ -1141,6 +1134,171 @@ std::vector<std::vector<std::string>> join_qmt(const std::vector<select_addition
     }
 
     return join_result;
+}
+
+/*
+Helper function to sort the hash keys so that we know how we want to order the values during the ORDER keyword
+Arguments:
+    - arguments: contains left tbl_name, right tbl_name, the type of join, and the constraint on which to join
+
+Returns:
+    - an in-memory table that represents the result of the join
+*/
+template <typename T>
+void quicksort_values(std::vector<T> &vec, int start, int end){
+    if(start >= end){
+        return;
+    }
+
+    int pivot = end;
+
+    int j = start;
+    int i = start - 1;
+    while(j < pivot){
+        if(vec[j] < vec[pivot]){
+            i++;
+            std::swap(vec[i], vec[j]);
+        }
+        j++;
+    }
+    i++;
+    pivot = i;
+    std::swap(vec[i], vec[j]);
+
+    quicksort_values(vec, start, pivot - 1);
+    quicksort_values(vec, pivot + 1, end);
+}
+
+/*
+Implementation for the ORDER BY function
+Arguments:
+    - arguments: contains left tbl_name, right tbl_name, the type of join, and the constraint on which to join
+
+Returns:
+    - an in-memory table that represents the result of the join
+*/
+std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additional_args> &constraints, const std::vector<std::vector<std::string>> &tbl, const std::vector<std::vector<std::string>> &tbl_schema){
+    std::cout << "Running order implementation, can fill out semantics later\n";
+
+    std::vector<std::vector<std::string>> result_tbl = tbl;
+    for(size_t i = 0; i < constraints.size(); ++i){
+        select_additional_args curr_constraint = constraints[i];
+
+        int num_attributes = result_tbl.size();
+
+        std::vector<std::string> sorted_csv_tables;
+        std::unordered_map<std::string, std::vector<std::string>> order_key_pairs;
+        std::string col_type = "string";
+
+        // Create a mapping to find which attribute goes to which column index
+        std::unordered_map<std::string, int> attr_to_idx_mapping;
+        for(size_t j = 0; j < tbl_schema[0].size(); ++j){
+            attr_to_idx_mapping[tbl_schema[0][j]] = j;
+            if(tbl_schema[0][j] == curr_constraint.order.col){
+                col_type = tbl_schema[1][j];
+            }
+        }
+
+        // Go through the table and write out the table out to disk
+        if(num_attributes > 0){
+            for (size_t col = 0; col < result_tbl[0].size(); col++) {
+                std::string hash_key;
+                std::string tbl_line;
+                for (size_t row = 0; row < result_tbl.size(); row++) {
+                    if(row == attr_to_idx_mapping[curr_constraint.order.col]){
+                        hash_key = result_tbl[row][col];
+                    }
+                    tbl_line += result_tbl[row][col] + ",";
+                }
+                order_key_pairs[hash_key].push_back(tbl_line);
+            }
+        }
+        else{
+            return result_tbl;
+        }
+
+        std::vector<std::string> sort_keys;
+        for(auto &pair : order_key_pairs){
+            sort_keys.push_back(pair.first);
+        }
+
+        if(col_type == "string"){
+            quicksort_values(sort_keys, 0, sort_keys.size() - 1);
+        }
+        else if(col_type == "int"){
+            std::vector<int> int_sort_keys;
+            for(size_t i = 0; i < sort_keys.size(); ++i){
+                int_sort_keys.push_back(std::stoi(sort_keys[i]));
+            }
+            quicksort_values(int_sort_keys, 0, int_sort_keys.size() - 1);
+            sort_keys.clear();
+            for(size_t i = 0; i < int_sort_keys.size(); ++i){
+                sort_keys.push_back(std::to_string(int_sort_keys[i]));
+            }
+        }
+        else if(col_type == "double"){
+            std::vector<double> double_sort_keys;
+            for(size_t i = 0; i < sort_keys.size(); ++i){
+                double_sort_keys.push_back(std::stod(sort_keys[i]));
+            }
+            quicksort_values(double_sort_keys, 0, double_sort_keys.size() - 1);
+            sort_keys.clear();
+            for(size_t i = 0; i < double_sort_keys.size(); ++i){
+                sort_keys.push_back(std::to_string(double_sort_keys[i]));
+            }
+        }
+        else if(col_type == "bool"){
+            std::vector<bool> bool_sort_keys;
+            for(size_t i = 0; i < sort_keys.size(); ++i){
+                if(sort_keys[i] == "true"){
+                    bool_sort_keys.push_back(true);
+                }
+                else{
+                    bool_sort_keys.push_back(false);
+                }
+            }
+            quicksort_values(bool_sort_keys, 0, bool_sort_keys.size() - 1);
+            sort_keys.clear();
+            for(size_t i = 0; i < bool_sort_keys.size(); ++i){
+                sort_keys.push_back(std::to_string(bool_sort_keys[i]));
+            }
+        }
+        else if(col_type == "char"){
+            std::vector<char> char_sort_keys;
+            for(size_t i = 0; i < sort_keys.size(); ++i){
+                char_sort_keys.push_back(sort_keys[i][0]);
+            }
+            quicksort_values(char_sort_keys, 0, char_sort_keys.size() - 1);
+            sort_keys.clear();
+            for(size_t i = 0; i < char_sort_keys.size(); ++i){
+                sort_keys.push_back(std::to_string(char_sort_keys[i]));
+            }
+        }
+        else{
+            std::cout << "Column of unknown type " << col_type << std::endl;
+            exit(21);
+        }
+
+        if(curr_constraint.order.sort_direction == ASC){
+            for(size_t i = 0; i < sort_keys.size(); ++i){
+                for(size_t j = 0; j < order_key_pairs[sort_keys[i]].size(); ++j){
+                    sorted_csv_tables.push_back(order_key_pairs[sort_keys[i]][j]);
+                }
+            }
+        }
+        else{
+            for(int i = sort_keys.size() - 1; i >= 0; --i){
+                for(size_t j = 0; j < order_key_pairs[sort_keys[i]].size(); ++j){
+                    sorted_csv_tables.push_back(order_key_pairs[sort_keys[i]][j]);
+                }
+            }
+        }
+
+        result_tbl = vectorize_csv(sorted_csv_tables);
+
+    }
+
+    return result_tbl;
 }
 
 /*

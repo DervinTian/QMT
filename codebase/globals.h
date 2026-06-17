@@ -20,6 +20,7 @@ enum cmd_type{
     FROM,
     MATH,
     JOIN,
+    ORDER,
     NONE
 };
 
@@ -52,6 +53,11 @@ enum join_types{
     INNER,
     OUTER,
     CROSS
+};
+
+enum order_by_directions{
+    ASC, 
+    DESC
 };
 
 // object to be used in the comparisons
@@ -102,11 +108,17 @@ struct join_args{
     join_types join_type;
 };
 
+struct order_args{
+    std::string col;
+    order_by_directions sort_direction;
+};
+
 // Data structure to hold additional arguments as constraints
 struct select_additional_args{
     where_args where;
     from_args from;
     join_args join;
+    order_args order;
 
     cmd_type curr_type;
 };
@@ -203,6 +215,7 @@ cmp_return_type where_qmt(const select_additional_args &constraint);
 std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints);
 double math_qmt(const std::vector<std::string> &expression_pieces);
 std::vector<std::vector<std::string>> join_qmt(const std::vector<select_additional_args> &constraints, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema);
+std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additional_args> &constraints, const std::vector<std::vector<std::string>> &tbl, const std::vector<std::vector<std::string>> &tbl_schema);
 
 // Additional functions to be used
 bool valid_table(std::string table);
@@ -210,5 +223,6 @@ bool valid_pathname(std::string pathname);
 std::string trim_string(std::string value);
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
 std::vector<std::vector<std::string>> vectorize_schema(const std::string &schema_string);
+std::vector<std::vector<std::string>> vectorize_csv(const std::vector<std::string> &csv_format_table);
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema);
 void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std::string tbl_name);
