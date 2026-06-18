@@ -200,6 +200,7 @@ extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd
 extern std::unordered_map<std::string, std::function<void(const select_additional_args&)>> additional_cmd_impls;
 extern std::unordered_map<std::string, std::function<bool(const std::string&)>> check_value_against_type;
 extern std::unordered_map<std::string, std::function<bool(const cmp_object&, const cmp_object&)>> comparators;
+extern std::unordered_map<std::string, std::string> alias_to_attr_mapping;
 extern std::string db_path;
 extern std::vector<std::string> in_memory_script;
 extern int executing_line_num;

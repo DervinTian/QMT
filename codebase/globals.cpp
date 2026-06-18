@@ -28,6 +28,7 @@ std::unordered_map<std::string, std::function<bool(const std::string&)>> check_v
 std::unordered_map<std::string, std::function<bool(const cmp_object&, const cmp_object&)>> comparators;
 std::string db_path;
 std::vector<std::string> in_memory_script;
+std::unordered_map<std::string, std::string> alias_to_attr_mapping;
 
 int int_default_value = 0;
 double double_default_value = 0.0;

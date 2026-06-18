@@ -76,7 +76,7 @@ Returns:
     - returns a boolean value representing whether or not the commands were successfully executed or not
 */
 bool run_interpreter(int starting_line, int end_line){
-
+    alias_to_attr_mapping.clear(); // reset variable scopes during each command
     // Want to read in the lines into a command in-memory
     std::vector<std::string> command;
     for(int i = starting_line; i < end_line + 1; ++i){

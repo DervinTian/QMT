@@ -101,6 +101,7 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
     args.cmd = SELECT;
 
     bool table = false;
+    bool additionals_time = false;
 
     // go through all the lines in the command, helps for future context like WHERE constraints etc.
     for(size_t i = 0; i < command.size(); ++i){
@@ -108,14 +109,16 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
         std::string line = command[i];
 
         bool go_time = false;
-        bool from_time = false;
+        int mode = 0;
+
+        std::cout << additionals_time << " " << line << std::endl;
 
         // skip if there is an empty command
         if(line.size() == 0){
             continue;
         }
 
-        if(i > 1){
+        if(additionals_time){
             args.select.additionals.push_back(line);
             continue;
         }
@@ -129,10 +132,6 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                 go_time = true;
                 continue;
             }
-            if(tmp == "FROM"){
-                from_time = true;
-                continue;
-            }
 
             // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
             if(go_time){
@@ -144,31 +143,23 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                     if(tmp[j] == ')'){
                         args.select.sel_columns.push_back(attr);
                         go_time = false;
+                        additionals_time = true;
                         continue;
                     }
 
                     if(tmp[j] == ','){
-                        args.select.sel_columns.push_back(attr);
+                        if(mode == 0){
+                            args.select.tbl_name = attr;
+                            mode = 1;
+                        }
+                        else{
+                            args.select.sel_columns.push_back(attr);
+                        }   
+                        continue;
                     }
                     else{
                         attr += tmp[j];
                     }
-                }
-            }
-
-            if(from_time){
-                std::string attr;
-                for(size_t j = 0; j < tmp.size(); ++j){
-                    if(tmp[j] == '('){
-                        continue;
-                    }
-                    if(tmp[j] == ')'){
-                        args.select.tbl_name = attr;
-                        from_time = false;
-                        continue;
-                    }
-
-                    attr += tmp[j];
                 }
             }
         }
@@ -454,6 +445,7 @@ void fill_from_args(const std::vector<std::string> &command, select_additional_a
         std::string line = command[i];
 
         bool time_go = false;
+        bool alias_time = false;
         std::stringstream ss(line);
         std::string tmp;
         std::string data_source;
@@ -462,6 +454,10 @@ void fill_from_args(const std::vector<std::string> &command, select_additional_a
             if(tmp == "FROM"){
                 time_go = true;
                 args.curr_type = FROM;
+                continue;
+            }
+            if(tmp == "AS"){
+                alias_time = true;
                 continue;
             }
 
@@ -486,6 +482,14 @@ void fill_from_args(const std::vector<std::string> &command, select_additional_a
                     data_source += tmp[j];
                 }
             }   
+
+            if(alias_time){
+                std::string alias_name;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    alias_name += tmp[j];
+                }
+                alias_to_attr_mapping[alias_name] = data_source;
+            }
 
         }
     }
