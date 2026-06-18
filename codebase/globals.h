@@ -99,6 +99,7 @@ struct column_entry{
 struct math_args{
     std::vector<std::string> expression_pieces;
     std::vector<std::string> variables;
+    std::unordered_map<std::string, std::vector<std::string>> variable_pairs;
 };
 
 // Data structure to hold arguments for the WHERE command
@@ -146,6 +147,7 @@ struct select_additional_args{
 struct select_args{
     std::string tbl_name;
     std::vector<std::string> sel_columns;
+    std::unordered_map<std::string, std::vector<std::string>> table_columns;
     std::vector<std::string> additionals;
 
     select_additional_args additional_args;
@@ -242,6 +244,7 @@ void exit_with_error(int error_code, std::string message);
 bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
 std::string trim_string(std::string value);
+std::pair<std::string, std::string> split_table_column(std::string value);
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
 std::vector<std::vector<std::string>> vectorize_schema(const std::string &schema_string);
 std::vector<std::vector<std::string>> vectorize_csv(const std::vector<std::string> &csv_format_table);

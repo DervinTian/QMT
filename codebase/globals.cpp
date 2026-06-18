@@ -154,6 +154,22 @@ std::string trim_string(std::string value){
 }
 
 /*
+Function to split a variable like table_name.column_name into (table_name, column_name)
+Arguments:
+    - table: value, the value to be trimmed
+*/
+std::pair<std::string, std::string> split_table_column(std::string value){
+    std::stringstream ss(value);
+    std::string first, second;
+
+    // delimit on the '_' character
+    std::getline(ss, first, '.');
+    std::getline(ss, second, '.');
+
+    return std::make_pair(first, second);
+}
+
+/*
 Helper function ton convert a line of string into a valid schema
 Arguments:
     - schema_string: the contents of hte schema like this name_type,name2_type2,...
@@ -470,6 +486,7 @@ Return:
     - cmp_return_type: has three possible values, TRUE if passes, FALSE if fails, UNKNOWN if values were not comparabale
 */
 cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map<std::string, cmp_object> &expression_variables){
+    std::cout << "Running where implementation\n";
     bool good_to_push = false;
 
     // The types of the values to be compared
@@ -507,10 +524,10 @@ cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map
 
                 // do it different for INTs and DOUBLEs
                 if(lhs_type == INT){
-                    constraint.where.left_math.expression_pieces[curr_variable_idx] = std::to_string(curr_variable.param_int);
+                    constraint.where.left_math.expression_pieces[variable_idx[curr_variable_idx]] = std::to_string(curr_variable.param_int);
                 }
                 else{
-                    constraint.where.left_math.expression_pieces[curr_variable_idx] = std::to_string(curr_variable.param_double);
+                    constraint.where.left_math.expression_pieces[variable_idx[curr_variable_idx]] = std::to_string(curr_variable.param_double);
                 }
                 curr_variable_idx++;
             }
@@ -561,16 +578,15 @@ cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map
                 rhs_type = curr_variable.type;
 
                 if(rhs_type == INT){
-                    constraint.where.right_math.expression_pieces[curr_variable_idx] = std::to_string(curr_variable.param_int);
+                    constraint.where.right_math.expression_pieces[variable_idx[curr_variable_idx]] = std::to_string(curr_variable.param_int);
                 }
                 else{
-                    constraint.where.right_math.expression_pieces[curr_variable_idx] = std::to_string(curr_variable.param_double);
+                    constraint.where.right_math.expression_pieces[variable_idx[curr_variable_idx]] = std::to_string(curr_variable.param_double);
                 }
                 curr_variable_idx++;
             }
 
-            expression_result = math_qmt(constraint.where.left_math.expression_pieces);
-
+            expression_result = math_qmt(constraint.where.right_math.expression_pieces);
             if(rhs_type == INT){
                 rhs_val.param_int = expression_result;
                 rhs_val.type = INT;
@@ -830,8 +846,8 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
                 if(constraint.where.type == MATH){
                     
                     // Want to fill in the variables, so see if it is in the left
-                    for(size_t i = 0; i < constraint.where.left_math.variables.size(); ++i){
-                        if(constraint.where.left_math.variables[i] == curr_col){
+                    for(size_t i = 0; i < constraint.where.left_math.variable_pairs[tbl_name].size(); ++i){
+                        if(constraint.where.left_math.variable_pairs[tbl_name][i] == curr_col){
                             cmp_object variable;
                             if(curr_col_type == "int"){
                                 variable.param_int = std::stoi(table_val); // convert it into an int
@@ -841,14 +857,14 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
                                 variable.param_double = std::stod(table_val); // convert it into a double
                                 variable.type = DOUBLE;
                             }
-                            expression_variables[curr_col] = variable;
+                            expression_variables[tbl_name + "." + curr_col] = variable;
                             continue;
                         }
                     }
 
                     // Want to fill in the variables, so see if it is in the right
-                    for(size_t i = 0; i < constraint.where.right_math.variables.size(); ++i){
-                        if(constraint.where.right_math.variables[i] == curr_col){
+                    for(size_t i = 0; i < constraint.where.right_math.variable_pairs[tbl_name].size(); ++i){
+                        if(constraint.where.right_math.variable_pairs[tbl_name][i] == curr_col){
                             cmp_object variable;
                             if(curr_col_type == "int"){
                                 variable.param_int = std::stoi(table_val); // convert it into an int
@@ -858,14 +874,18 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
                                 variable.param_double = std::stod(table_val); // convert it into a double
                                 variable.type = DOUBLE;
                             }
-                            expression_variables[curr_col] = variable;
+                            expression_variables[tbl_name + "." + curr_col] = variable;
                             continue;
                         }
                     }
                 }
                 else{
                     // otherwise, check to see if the lhs_expression or rhs_expression contains the column, then just add it to the variables map
-                    if(curr_col == constraint.where.lhs_expression || curr_col == constraint.where.rhs_expression){
+                    std::pair<std::string, std::string> left_variable_table_col = split_table_column(constraint.where.lhs_expression);
+                    std::string left_var_col = left_variable_table_col.second;
+                    std::pair<std::string, std::string> right_variable_table_col = split_table_column(constraint.where.rhs_expression);
+                    std::string right_var_col = right_variable_table_col.second;
+                    if(curr_col == left_var_col || curr_col == right_var_col){
                         cmp_object variable;
                         // go through the expression and convert it into it's appropriate type
                         if(curr_col_type == "string"){
@@ -893,7 +913,7 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
                             variable.param_double = std::stod(table_val);
                             variable.type = DOUBLE;
                         }
-                        expression_variables[curr_col] = variable; // map that variable to it's corresponding object
+                        expression_variables[tbl_name + "." + curr_col] = variable; // map that variable to it's corresponding object
                     }
                 }
 

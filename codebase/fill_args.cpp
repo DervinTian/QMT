@@ -125,6 +125,7 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
 
         std::stringstream ss(line);
         std::string tmp;
+        std::string tbl_name;
 
         // Read in each white-space terminated string into the tmp string
         while(ss >> tmp){
@@ -141,6 +142,7 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                         continue;
                     }
                     if(tmp[j] == ')'){
+                        args.select.table_columns[tbl_name].push_back(attr);
                         args.select.sel_columns.push_back(attr);
                         go_time = false;
                         additionals_time = true;
@@ -149,10 +151,14 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
 
                     if(tmp[j] == ','){
                         if(mode == 0){
-                            args.select.tbl_name = attr;
+                            tbl_name = attr;
+                            if(args.select.tbl_name.size() == 0){
+                                args.select.tbl_name = attr;
+                            }
                             mode = 1;
                         }
                         else{
+                            args.select.table_columns[tbl_name].push_back(attr);
                             args.select.sel_columns.push_back(attr);
                         }   
                         continue;
@@ -179,6 +185,7 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
         std::string line = command[i];
         std::stringstream ss(line);
         std::string tmp;
+        std::string tbl_name;
 
         bool go_time = false;
         int mode = 0; // mode 0 is for reading in lhs expression, 1 is for comparator, and after that is the mode can only be for the rhs expression
@@ -207,7 +214,8 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                             mode = 1;
                         }
                         else if(math_mode && mode == 0){
-                            args.where.left_math.variables.push_back(attr);
+                            args.where.left_math.variable_pairs[tbl_name].push_back(attr);
+                            args.where.left_math.variables.push_back(tbl_name + "." + attr);
                             mode = 1;
                             math_mode = false;
                         }
@@ -217,7 +225,8 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                             math_mode = false;
                         }
                         else if(math_mode && mode == 2){
-                            args.where.right_math.variables.push_back(attr);
+                            args.where.right_math.variable_pairs[tbl_name].push_back(attr);
+                            args.where.right_math.variables.push_back(tbl_name + "." + attr);
                             math_mode = false;
                         }
                         else{
@@ -227,9 +236,16 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                         break;
                     }
 
+                    if(tmp[j] == '.'){
+                        tbl_name = attr;
+                        attr.clear();
+                        continue;
+                    }
+
                     if(tmp[j] == ','){
                         if(math_mode && finished_reading_math_expression && mode == 0){
-                            args.where.left_math.variables.push_back(attr);
+                            args.where.left_math.variable_pairs[tbl_name].push_back(attr);
+                            args.where.left_math.variables.push_back(tbl_name + "." + attr);
                         }
                         else if(mode == 0 && !math_mode){
                             args.where.lhs_expression = attr;
@@ -240,7 +256,8 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                             mode = 2;
                         }
                         else if(math_mode && finished_reading_math_expression && mode == 2){
-                            args.where.right_math.variables.push_back(attr);
+                            args.where.right_math.variable_pairs[tbl_name].push_back(attr);
+                            args.where.right_math.variables.push_back(tbl_name + "." + attr);
                         }
 
                         if(!finished_reading_math_expression && mode == 0){
@@ -251,10 +268,10 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                             finished_reading_math_expression = true;
                             args.where.right_math.expression_pieces.push_back(attr);
                         }
+                        continue;
                     }
-                    else{
-                        attr += tmp[j];
-                    }
+
+                    attr += tmp[j];
                 }
                 if(math_mode && !finished_reading_math_expression && mode == 0){
                     args.where.left_math.expression_pieces.push_back(attr);

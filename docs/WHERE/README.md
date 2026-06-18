@@ -8,6 +8,7 @@ The purpose of the WHERE keyword is to act as an extension of the SELECT keyword
 WHERE (left_expression, comparator, right_expression, ...);
 ```
 - **left_expression:** represents the left hand side expression to be evaluated, similar to how regular SQL works.
+  - If using a column in the expression, as a variable or something, must specify the table name with the column in the format table_name.column_name.
 - **comparator:** represents the comparison to be performed between the left and the right expressions:
   - Accepted comparators include:
     - EQUAL or =
@@ -20,7 +21,7 @@ WHERE (left_expression, comparator, right_expression, ...);
 
 ## Example ##
 ```cpp
-WHERE (name, EQUAL, "John");
+WHERE (table.name, EQUAL, "John");
 ```
 
 _Note: The table name is derived from the select statement above._
