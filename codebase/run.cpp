@@ -13,16 +13,14 @@
 
 int main(int argc, char* argv[]){
     if(argc < 2){
-        std::cout << "No QMT script provided to run!\n";
-        exit(1);
+        exit_with_error(NULL_QMT, "");
     }
 
     std::string filename = argv[1];
 
     std::ifstream file(filename);
     if(!file){
-        std::cout << "Input file (path: " << filename << ") failed to open!\n";
-        exit(1);
+        exit_with_error(NULL_INPUT_FILE, filename);
     }
 
     std::ifstream database_name("db_path");
@@ -52,8 +50,7 @@ int main(int argc, char* argv[]){
         if(end_statement(script_line)){
             next_starting_line_num = i;
             if(!run_interpreter(prev_starting_line_num, i)){
-                std::cout << "Error in command ending at line " << i + 1 << std::endl;
-                exit(1);
+                exit_with_error(LINE_ERROR, "");
             }
 
             prev_starting_line_num = next_starting_line_num + 1;

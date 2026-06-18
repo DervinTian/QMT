@@ -32,8 +32,7 @@ bool comp_equal(const cmp_object &lhs, const cmp_object &rhs){
         return lhs.param_int == rhs.param_int;
     }
     else{
-        std::cout << "Unknown type in the comparator? " << lhs.type << std::endl;
-        exit(69);
+        exit_with_error(UNKNOWN_TYPE, std::to_string(lhs.type));
     }
     return false;
 }
@@ -62,8 +61,7 @@ bool comp_less(const cmp_object &lhs, const cmp_object &rhs){
         return lhs.param_int < rhs.param_int;
     }
     else{
-        std::cout << "Unknown type in the comparator? " << lhs.type << std::endl;
-        exit(69);
+        exit_with_error(UNKNOWN_TYPE, std::to_string(lhs.type));
     }
     return false;
 }
@@ -92,8 +90,7 @@ bool comp_greater(const cmp_object &lhs, const cmp_object &rhs){
         return lhs.param_int > rhs.param_int;
     }
     else{
-        std::cout << "Unknown type in the comparator? " << lhs.type << std::endl;
-        exit(69);
+        exit_with_error(UNKNOWN_TYPE, std::to_string(lhs.type));
     }
     return false;
 }
@@ -122,8 +119,7 @@ bool comp_less_than_or_equal_to(const cmp_object &lhs, const cmp_object &rhs){
         return lhs.param_int <= rhs.param_int;
     }
     else{
-        std::cout << "Unknown type in the comparator? " << lhs.type << std::endl;
-        exit(69);
+        exit_with_error(UNKNOWN_TYPE, std::to_string(lhs.type));
     }
     return false;
 }
@@ -152,8 +148,7 @@ bool comp_greater_than_or_equal_to(const cmp_object &lhs, const cmp_object &rhs)
         return lhs.param_int >= rhs.param_int;
     }
     else{
-        std::cout << "Unknown type in the comparator? " << lhs.type << std::endl;
-        exit(69);
+        exit_with_error(UNKNOWN_TYPE, std::to_string(lhs.type));
     }
     return false;
 }
@@ -182,8 +177,7 @@ bool comp_not_equal(const cmp_object &lhs, const cmp_object &rhs){
         return lhs.param_int != rhs.param_int;
     }
     else{
-        std::cout << "Unknown type in the comparator? " << lhs.type << std::endl;
-        exit(69);
+        exit_with_error(UNKNOWN_TYPE, std::to_string(lhs.type));
     }
     return false;
 }

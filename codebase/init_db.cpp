@@ -37,8 +37,7 @@ int main(int argc, char* argv[]){
         fs::create_directory(full_path);
     }
     catch (const fs::filesystem_error& e) {
-        std::cout << e.what() << '\n';
-        exit(1);
+        exit_with_error(FS_DATABASE, "");
     }
 
     std::ofstream file("db_path");

@@ -327,8 +327,7 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                         args.insert.tbl_name = attr;
 
                         if(!valid_table(args.insert.tbl_name)){
-                            std::cout << "Invalid tablename (tablename is: " << args.insert.tbl_name << ") detected.\n";
-                            exit(2);
+                            exit_with_error(INVALID_TABLENAME, args.insert.tbl_name);
                         }
                         
                         std::string schema_path = db_path + "/schemas/" + args.insert.tbl_name;
@@ -355,8 +354,7 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                     if(tmp[j] == ',' || tmp[j] == ')'){
                         std::string actual_type = schema_types[value_idx];
                         if(!check_value_against_type[actual_type](attr)){
-                            std::cout << "Wrong type being, expected " << actual_type << ", inserted into the column!\n";
-                            exit(7);
+                            exit_with_error(TYPE_MISMATCH, actual_type);
                         }
 
                         attr = trim_string(attr);
@@ -922,8 +920,7 @@ void fill_order_args(const std::vector<std::string> &command, select_additional_
                             args.order.sort_direction = ASC;
                         }
                         else{
-                            std::cout << "Unknown sort direction for ORDER: " << attr << std::endl;
-                            exit(20);
+                            exit_with_error(UNKNWON_SORT, attr);
                         }
                         time_go = false;
                         attr.clear();

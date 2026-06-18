@@ -91,14 +91,12 @@ void select_qmt(const cmd_args &arguments){
                 }
             }
             catch(...){
-                std::cout << "Command " << cmd_type << " is not defined!\n";
-                exit(20);
+                exit_with_error(UNKNOWN_CMD, cmd_type);
             }
             additional_cmd.push_back(arguments.select.additionals[i]);
         }
         else{
-            std::cout << "Command " << cmd_type << " is not defined!\n";
-            exit(20);
+            exit_with_error(UNKNOWN_CMD, cmd_type);
         }
 
         executing_line_num++; // essentially we just processed a where statement, so add an extra new line
@@ -127,21 +125,18 @@ void select_qmt(const cmd_args &arguments){
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
-        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
-        exit(1);
+        exit_with_error(INVALID_DATABASE_NAME, "");
     }
 
     if(!valid_table(arguments.select.tbl_name)){
-        std::cout << "Invalid tablename (tablename is: " << arguments.select.tbl_name << ") detected.\n";
-        exit(2);
+        exit_with_error(INVALID_TABLENAME, arguments.select.tbl_name);
     }
 
     std::string table_path = db_path + "/" + arguments.select.tbl_name;
     std::string schema_path = db_path + "/schemas/" + arguments.select.tbl_name;
 
     if(!fs::exists(table_path)){
-        std::cout << "Table " << arguments.select.tbl_name << " doesn't exist!\n";
-        exit(3);
+        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
     }
 
     std::vector<std::vector<std::string>> schema = read_schema(schema_path);
@@ -210,20 +205,17 @@ void insert_qmt(const cmd_args &arguments){
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
-        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
-        exit(1);
+        exit_with_error(INVALID_DATABASE_NAME, "");
     }
 
     if(!valid_table(arguments.insert.tbl_name)){
-        std::cout << "Invalid tablename (tablename is: " << arguments.insert.tbl_name << ") detected.\n";
-        exit(2);
+        exit_with_error(INVALID_TABLENAME, arguments.insert.tbl_name);
     }
 
     std::string table_path = db_path + "/" + arguments.insert.tbl_name;
 
     if(!fs::exists(table_path)){
-        std::cout << "Table " << arguments.insert.tbl_name << " doesn't exist!\n";
-        exit(3);
+        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
     }
 
     // Go through the values and create a comma-separated line for the values and insert into the table file
@@ -254,20 +246,17 @@ void create_qmt(const cmd_args &arguments){
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
-        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
-        exit(1);
+        exit_with_error(INVALID_DATABASE_NAME, "");
     }
 
     if(!valid_table(arguments.create.tbl_name)){
-        std::cout << "Invalid tablename (tablename is: " << arguments.create.tbl_name << ") detected.\n";
-        exit(2);
+        exit_with_error(INVALID_TABLENAME, arguments.create.tbl_name);
     }
     
     std::string table_path = db_path + "/" + arguments.create.tbl_name;
 
     if(fs::exists(table_path)){
-        std::cout << "Table " << arguments.create.tbl_name << " already exists!\n";
-        exit(3);
+        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
     }
 
     // Create a blank table in the database with the given table name
@@ -334,8 +323,7 @@ void create_qmt(const cmd_args &arguments){
                     schema_file.close();
                 }
                 else{
-                    std::cout << "Schema for table " << csv_tbl_name << " already exists!" << std::endl;
-                    exit(18);
+                    exit_with_error(SCHEMA_EXISTS, csv_tbl_name);
                 }
 
                 // Now that we have a schema, read in the table from the data source
@@ -366,21 +354,18 @@ void update_qmt(const cmd_args &arguments){
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
-        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
-        exit(1);
+        exit_with_error(INVALID_DATABASE_NAME, "");
     }
 
     if(!valid_table(arguments.update.tbl_name)){
-        std::cout << "Invalid tablename (tablename is: " << arguments.update.tbl_name << ") detected.\n";
-        exit(2);
+        exit_with_error(INVALID_TABLENAME, arguments.update.tbl_name);
     }
 
     std::string table_path = db_path + "/" + arguments.update.tbl_name;
     std::string schema_path = db_path + "/schemas/" + arguments.update.tbl_name;
 
     if(!fs::exists(table_path)){
-        std::cout << "Table " << arguments.update.tbl_name << " doesn't exist!\n";
-        exit(3);
+        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
     }
 
     // Similar to the SELECt keyword, need to keep track of what constraints there are on the UPDATE clause
@@ -465,8 +450,7 @@ void update_qmt(const cmd_args &arguments){
     }
 
     if(whole_table.size() == 0){
-        std::cout << "Empty table, cannot update records on an empty table!\n";
-        exit(10);
+        exit_with_error(EMPTY_TABLE, "");
     }
 
     // For the original table, find which of those columns correspond to the filtered columns and keep track of them in the columns_in_there set
@@ -532,21 +516,18 @@ void alter_qmt(const cmd_args &arguments){
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
-        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
-        exit(1);
+        exit_with_error(6, "");
     }
 
     if(!valid_table(arguments.create.tbl_name)){
-        std::cout << "Invalid tablename (tablename is: " << arguments.alter.tbl_name << ") detected.\n";
-        exit(2);
+        exit_with_error(7, arguments.create.tbl_name);
     }
 
     std::string table_path = db_path + "/" + arguments.alter.tbl_name;
     std::string schema_path = db_path + "/schemas/" + arguments.alter.tbl_name;
 
     if(!fs::exists(table_path)){
-        std::cout << "Table " << arguments.alter.tbl_name << " doesn't exist!\n";
-        exit(3);
+        exit_with_error(8, table_path);
     }
 
     // If we are renaming go here
@@ -554,8 +535,7 @@ void alter_qmt(const cmd_args &arguments){
         std::cout << "Column to be modified is: " << arguments.alter.column_name << " and modify it to: " << arguments.alter.new_column_name << std::endl;
         // Create a schema if there doesn't exist one already
         if(!fs::exists(schema_path)){
-            std::cout << "Schema for Table " << arguments.alter.tbl_name << " doesn't exist!\n";
-            exit(4);
+            exit_with_error(NULL_SCHEMA, arguments.alter.tbl_name);
         }
 
         std::ifstream schema_file(schema_path);
@@ -605,8 +585,7 @@ void alter_qmt(const cmd_args &arguments){
         std::cout << "Column to be modified is: " << arguments.alter.column_name << " and modify it to: " << arguments.alter.new_column_type << std::endl;
          // Create a schema if there doesn't exist one already
         if(!fs::exists(schema_path)){
-            std::cout << "Schema for Table " << arguments.alter.tbl_name << " doesn't exist!\n";
-            exit(4);
+            exit_with_error(NULL_SCHEMA, arguments.alter.tbl_name);
         }
 
         std::ifstream schema_file(schema_path);
@@ -672,21 +651,18 @@ void add_col_qmt(const cmd_args &arguments){
 
     // Check to make sure that all the names and paths are valid
     if(!valid_pathname(db_path)){
-        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
-        exit(1);
+        exit_with_error(INVALID_DATABASE_NAME, "");
     }
 
     if(!valid_table(arguments.create.tbl_name)){
-        std::cout << "Invalid tablename (tablename is: " << arguments.add_cols.tbl_name << ") detected.\n";
-        exit(2);
+        exit_with_error(INVALID_TABLENAME, arguments.create.tbl_name);
     }
 
     std::string table_path = db_path + "/" + arguments.add_cols.tbl_name;
     std::string schema_path = db_path + "/schemas/" + arguments.add_cols.tbl_name;
 
     if(!fs::exists(table_path)){
-        std::cout << "Table " << arguments.create.tbl_name << " doesn't exist!\n";
-        exit(3);
+        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
     }
 
     // Create a schema if there doesn't exist one already
@@ -742,8 +718,7 @@ void add_col_qmt(const cmd_args &arguments){
             output_table << curr_line + std::to_string(char_default_value) + ",\n";
         }
         else{
-            std::cout << arguments.add_cols.type << " is not a recognized type!\n";
-            exit(16);
+            exit_with_error(UNKNOWN_TYPE, arguments.add_cols.type);
         }
     }
     output_table.close();
@@ -764,21 +739,18 @@ void delete_qmt(const cmd_args &arguments){
 
     // Do error checking to ensure that the database and the tables are valid paths
     if(!valid_pathname(db_path)){
-        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
-        exit(1);
+        exit_with_error(INVALID_DATABASE_NAME, "");
     }
 
     if(!valid_table(arguments.deleted.tbl_name)){
-        std::cout << "Invalid tablename (tablename is: " << arguments.deleted.tbl_name << ") detected.\n";
-        exit(2);
+        exit_with_error(INVALID_TABLENAME, arguments.deleted.tbl_name);
     }
 
     std::string table_path = db_path + "/" + arguments.deleted.tbl_name;
     std::string schema_path = db_path + "/schemas/" + arguments.deleted.tbl_name;
 
     if(!fs::exists(table_path)){
-        std::cout << "Table " << arguments.deleted.tbl_name  << " doesn't exist!\n";
-        exit(3);
+        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
     }
 
     // If everything is valid, remove the schema and the data table from the database

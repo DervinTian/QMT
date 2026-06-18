@@ -24,6 +24,25 @@ enum cmd_type{
     NONE
 };
 
+enum error_codes{
+    NULL_QMT,
+    NULL_INPUT_FILE,
+    LINE_ERROR,
+    FS_DATABASE,
+    UNKNOWN_CMD,
+    INVALID_DATABASE_NAME,
+    INVALID_TABLENAME,
+    NULL_TABLE,
+    SCHEMA_EXISTS,
+    EMPTY_TABLE,
+    NULL_SCHEMA,
+    UNKNOWN_TYPE,
+    TYPE_MISMATCH,
+    UNKNWON_SORT,
+    INVALID_CMP,
+    UNKNOWN_CMP
+};
+
 enum math_modes{
     SUBTRACT,
     ADD,
@@ -219,6 +238,7 @@ std::vector<std::vector<std::string>> join_qmt(const std::vector<select_addition
 std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additional_args> &constraints, const std::vector<std::vector<std::string>> &tbl, const std::vector<std::vector<std::string>> &tbl_schema);
 
 // Additional functions to be used
+void exit_with_error(int error_code, std::string message);
 bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
 std::string trim_string(std::string value);

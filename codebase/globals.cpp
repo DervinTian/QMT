@@ -39,6 +39,78 @@ bool bool_default_value = false;
 int executing_line_num = 0;
 
 /*
+Function to exit the code with a certain error code and message
+Arguments:
+    - pathname: pathname to be checked
+*/
+void exit_with_error(int error_code, std::string message){
+    if(error_code == NULL_QMT){
+        std::cout << "No QMT script provided to run!\n";
+        exit(1);
+    }
+    else if(error_code == NULL_INPUT_FILE){
+        std::cout << "Input file" << message << " failed to open!\n";
+        exit(2);
+    }
+    else if(error_code == LINE_ERROR){
+        std::cout << "Error in command ending at line " << executing_line_num << std::endl;
+        exit(3);
+    }
+    else if(error_code == FS_DATABASE){
+        std::cout << "Unable to create database directory!\n";
+        exit(4);
+    }
+    else if(error_code == UNKNOWN_CMD){
+        std::cout << "Unknown command: " << message << "\n";
+        exit(5);
+    }
+    else if(error_code == INVALID_DATABASE_NAME){
+        std::cout << "Invalid database (pathname is: " << db_path << ") detected. Did you forget to run init_db?\n";
+        exit(6);
+    }
+    else if(error_code == INVALID_TABLENAME){
+        std::cout << "Invalid tablename (tablename is: " << message << ") detected.\n";
+        exit(7);
+    }
+    else if(error_code == NULL_TABLE){
+        std::cout << "Table " << message << " doesn't exist!\n";
+        exit(8);
+    }
+    else if(error_code == SCHEMA_EXISTS){
+        std::cout << "Schema for table " << message << " already exists!" << std::endl;
+        exit(9);
+    }
+    else if(error_code == EMPTY_TABLE){
+        std::cout << "Empty table, cannot update records on an empty table!\n";
+        exit(10);
+    }
+    else if(error_code == NULL_SCHEMA){
+        std::cout << "Schema for Table " << message << " doesn't exist!\n";
+        exit(11);
+    }
+    else if(error_code == UNKNOWN_TYPE){
+        std::cout << message << " is not a recognized type!\n";
+        exit(12);
+    }
+    else if(error_code == TYPE_MISMATCH){
+        std::cout << "Wrong type being, expected " << message << ", inserted into the column!\n";
+        exit(13);
+    }
+    else if(error_code == UNKNWON_SORT){
+        std::cout << "Unknown sort direction for ORDER: " << message << std::endl;
+        exit(14);
+    }
+    else if(error_code == INVALID_CMP){
+        std::cout << "Values for the left hand side and the right hand side are not comparable" << std::endl;
+        exit(15);
+    }
+    else if(error_code == UNKNOWN_CMP){
+        std::cout << "Unknown comparator: " << message << std::endl;
+        exit(16);
+    }
+}
+
+/*
 Function to check if the pathname is a valid one to look within the database.
 Arguments:
     - pathname: pathname to be checked
@@ -158,8 +230,7 @@ std::vector<std::vector<std::string>> read_schema(const std::string &schema_path
     size_t pos = schema_path.rfind('/');
     std::string tbl_name = schema_path.substr(pos + 1);
     if(!fs::exists(schema_path)){
-        std::cout << "Schema for " << tbl_name << " doesn't exist!\n";
-        exit(3);
+        exit_with_error(NULL_SCHEMA, tbl_name);
     }
 
     std::ifstream schema_file(schema_path);
@@ -466,8 +537,7 @@ cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map
                 lhs_val.type = DOUBLE;
             }
             else{
-                std::cout << "Unknown type for " << constraint.where.lhs_expression << ". Did you forget to use the MATH keyword?" << std::endl;
-                exit(17);
+                exit_with_error(UNKNOWN_TYPE, constraint.where.lhs_expression);
             }
         }
 
@@ -520,8 +590,7 @@ cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map
                 rhs_val.type = DOUBLE;
             }
             else{
-                std::cout << "Unknown type for " << constraint.where.rhs_expression << ". Did you forget to use the MATH keyword?" << std::endl;
-                exit(17);
+                exit_with_error(UNKNOWN_TYPE, constraint.where.rhs_expression);
             }
         }
 
@@ -576,8 +645,7 @@ cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map
                 lhs_val.type = DOUBLE;
             }
             else{
-                std::cout << "Unknown type in the expression\n" << std::endl;
-                exit(67);
+                exit_with_error(UNKNOWN_TYPE, constraint.where.lhs_expression);
             }
         }
 
@@ -612,15 +680,13 @@ cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map
                 rhs_val.type = DOUBLE;
             }
             else{
-                std::cout << "Unknown type in the expression\n" << std::endl;
-                exit(67);
+                exit_with_error(UNKNOWN_TYPE, constraint.where.rhs_expression);
             }
         }
 
         // Make sure that the types for the lhs and the rhs are comparable
         if(lhs_val.type != rhs_val.type){
-            std::cout << "Values for the left hand side and the right hand side are not comparable" << std::endl;
-            exit(67);
+            exit_with_error(INVALID_CMP, "");
         }
     }
 
@@ -644,8 +710,7 @@ cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map
         comparator = "greater_than_or_equal";
     }
     else{
-        std::cout << "Unknown comparator: " << constraint.where.comparator << std::endl;
-        exit(9);
+        exit_with_error(UNKNOWN_CMD, constraint.where.comparator);
     }
 
     // run the comparison between the two values filled in with the comparator
@@ -700,8 +765,7 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
         }
 
         if(!fs::exists(table_path)){
-            std::cout << "Table " << tbl_name << " doesn't exist!\n";
-            exit(3);
+            exit_with_error(NULL_TABLE, tbl_name);
         }
     }
     else{
@@ -1276,8 +1340,7 @@ std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additio
             }
         }
         else{
-            std::cout << "Column of unknown type " << col_type << std::endl;
-            exit(21);
+            exit_with_error(UNKNOWN_TYPE, col_type);
         }
 
         if(curr_constraint.order.sort_direction == ASC){
@@ -1374,8 +1437,7 @@ void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std
 
     // Check to see if the table exists
     if(!fs::exists(table_path)){
-        std::cout << "Table " << tbl_name << " doesn't exist!\n";
-        exit(3);
+        exit_with_error(NULL_TABLE, tbl_name);
     }
 
     std::ofstream tbl_file(table_path);
