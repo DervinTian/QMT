@@ -108,6 +108,10 @@ void exit_with_error(int error_code, std::string message){
         std::cout << "Unknown comparator: " << message << std::endl;
         exit(16);
     }
+    else if(error_code == DIFF_SCHEMAS){
+        std::cout << "Schemas differ across the two tables!\n";
+        exit(17);
+    }
 }
 
 /*

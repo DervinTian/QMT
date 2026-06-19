@@ -18,3 +18,4 @@ void update_qmt(const cmd_args &arguments);
 void alter_qmt(const cmd_args &arguments);
 void add_col_qmt(const cmd_args &arguments);
 void delete_qmt(const cmd_args &arguments);
+void copy_qmt(const cmd_args &arguments);

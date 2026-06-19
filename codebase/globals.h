@@ -21,6 +21,7 @@ enum cmd_type{
     MATH,
     JOIN,
     ORDER,
+    COPY,
     NONE
 };
 
@@ -40,7 +41,8 @@ enum error_codes{
     TYPE_MISMATCH,
     UNKNWON_SORT,
     INVALID_CMP,
-    UNKNOWN_CMP
+    UNKNOWN_CMP,
+    DIFF_SCHEMAS
 };
 
 enum math_modes{
@@ -201,6 +203,12 @@ struct delete_args{
     std::string tbl_name;
 };
 
+// Data structure to hold argumnents for the COPY command
+struct copy_args{
+    std::string orig_table;
+    std::string copy_table;
+};
+
 // Data structure to hold all the arguments to be passed into the implementations
 struct cmd_args{
     cmd_type cmd;
@@ -212,6 +220,7 @@ struct cmd_args{
     delete_args deleted;
     update_args update;
     alter_args alter;
+    copy_args copy;
 };
 
 // Global variables to be used

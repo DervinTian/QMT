@@ -25,6 +25,7 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args);
 void fill_update_args(const std::vector<std::string> &command, cmd_args &args);
 void fill_alter_args(const std::vector<std::string> &command, cmd_args &args);
 void fill_delete_args(const std::vector<std::string> &command, cmd_args &args);
+void fill_copy_args(const std::vector<std::string> &command, cmd_args &args);
 
 void fill_where_args(const std::vector<std::string> &command, select_additional_args &args);
 void fill_from_args(const std::vector<std::string> &command, select_additional_args &args);
