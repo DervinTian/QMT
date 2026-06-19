@@ -945,6 +945,56 @@ void fill_copy_args(const std::vector<std::string> &command, cmd_args &args){
 }
 
 /*
+Function in order to fill in the arguments for COPY to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
+void fill_move_args(const std::vector<std::string> &command, cmd_args &args){
+    std::cout << "Move function added to the function map, can fill out args for move statements" << std::endl;
+
+    for(size_t i = 0; i < command.size(); ++i){
+        std::vector<std::string> line_content;
+        std::string line = command[i];
+
+        bool time_go = false;
+
+        if(line.size() == 0){
+            continue;
+        }
+
+        std::stringstream ss(line);
+        std::string tmp;
+
+        while(ss >> tmp){
+            if(tmp == "MOVE"){
+                time_go = true;
+                continue;
+            }
+
+            if(time_go){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.move.dest_table = attr;
+                        time_go = false;
+                        continue;
+                    }
+                    if(tmp[j] == ','){
+                        args.move.source_table = attr;
+                        continue;
+                    }
+                    attr += tmp[j];
+                }
+            }
+        }
+    }
+}
+
+/*
 Function in order to fill in the arguments ORDER BY to be passed into the QMT command implementation.
 Arguments:
     - command: A string of QMT lines/commands

@@ -209,6 +209,12 @@ struct copy_args{
     std::string copy_table;
 };
 
+// Data structure to hold argumnents for the MOVE command
+struct move_args{
+    std::string source_table;
+    std::string dest_table;
+};
+
 // Data structure to hold all the arguments to be passed into the implementations
 struct cmd_args{
     cmd_type cmd;
@@ -221,6 +227,7 @@ struct cmd_args{
     update_args update;
     alter_args alter;
     copy_args copy;
+    move_args move;
 };
 
 // Global variables to be used
