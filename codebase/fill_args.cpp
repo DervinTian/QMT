@@ -152,9 +152,6 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                     if(tmp[j] == ','){
                         if(mode == 0){
                             tbl_name = attr;
-                            if(args.select.tbl_name.size() == 0){
-                                args.select.tbl_name = attr;
-                            }
                             mode = 1;
                         }
                         else{
@@ -233,6 +230,7 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                             args.where.rhs_expression = attr;
                             go_time = false;
                         }
+                        args.where.run_where = true;
                         break;
                     }
 

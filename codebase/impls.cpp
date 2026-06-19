@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cctype>
+#include <bitset>
 #include <unordered_set>
 
 #include "interpreter.h"
@@ -55,11 +56,9 @@ void select_qmt(const cmd_args &arguments){
 
         // Fill in the arguments for the specified keyword
         if(cmd_type == "where"){
-            add_args.where.tbl_name = arguments.select.tbl_name;
             curr_mode = WHERE;
         }
         else if(cmd_type == "join"){
-            add_args.join.left_tbl = arguments.select.tbl_name;
             curr_mode = JOIN;
             join = true;
         }
@@ -128,15 +127,33 @@ void select_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_DATABASE_NAME, "");
     }
 
-    if(!valid_table(arguments.select.tbl_name)){
-        exit_with_error(INVALID_TABLENAME, arguments.select.tbl_name);
+
+    std::string smaller_table_size_name;
+    int smallest_table_so_far = INT_MAX;
+    for(auto &pair : arguments.select.table_columns){
+        std::string path = db_path + "/" + pair.first;
+        std::string binary_row_count;
+        if(!fs::exists(path)){
+            exit_with_error(NULL_TABLE, pair.first);
+        }
+
+        std::ifstream input_file(path);
+        std::getline(input_file, binary_row_count);
+
+        int decimal_row_count = std::stoi(binary_row_count, nullptr, 2);
+
+        if(decimal_row_count < smallest_table_so_far){
+            smallest_table_so_far = decimal_row_count;
+            smaller_table_size_name = pair.first;
+        }
     }
 
-    std::string table_path = db_path + "/" + arguments.select.tbl_name;
-    std::string schema_path = db_path + "/schemas/" + arguments.select.tbl_name;
+
+    std::string table_path = db_path + "/" + smaller_table_size_name;
+    std::string schema_path = db_path + "/schemas/" + smaller_table_size_name;
 
     if(!fs::exists(table_path)){
-        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
+        exit_with_error(NULL_TABLE, smaller_table_size_name);
     }
 
     std::vector<std::vector<std::string>> schema = read_schema(schema_path);
@@ -215,22 +232,45 @@ void insert_qmt(const cmd_args &arguments){
     std::string table_path = db_path + "/" + arguments.insert.tbl_name;
 
     if(!fs::exists(table_path)){
-        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
+        exit_with_error(NULL_TABLE, arguments.insert.tbl_name);
     }
+
+    std::ifstream input_tbl(table_path);
+    std::string binary_row_count;
+    std::getline(input_tbl, binary_row_count);
+    std::cout << binary_row_count << std::endl;
+    int num_rows = std::stoi(binary_row_count, nullptr, 2);
+    input_tbl.close();
 
     // Go through the values and create a comma-separated line for the values and insert into the table file
     std::ofstream tbl(table_path, std::ios::app);
 
     // For the values that we want to insert, go through and write it all out to disk with a ',' delimiter
     for(size_t i = 0; i < arguments.insert.values.size(); ++i){
-        tbl << arguments.insert.values[i];
-        if(i != arguments.insert.values.size() - 1){
-            tbl << ',';
-        }
+        tbl << arguments.insert.values[i] << ",";
     }
 
     tbl << '\n';
     tbl.close();
+
+
+    num_rows++;
+    binary_row_count = std::bitset<12>(num_rows).to_string(); // HARDCODED TO HAVE PAGE SIZE OF 4096
+
+    // Used AI to generate how to modify the a line_inplace given the same amount of characters
+    std::fstream tbl_file(table_path, std::ios::in | std::ios::out);
+
+    if (!tbl_file){
+        exit_with_error(NULL_INPUT_FILE, table_path);
+    }
+
+    std::string line;
+    // Read the first line
+    std::getline(tbl_file, line);
+    // Go back to the beginning of the file
+    tbl_file.seekp(0);
+    // Overwrite the first line
+    tbl_file << binary_row_count << std::endl;
 
     return;
 }
@@ -256,11 +296,8 @@ void create_qmt(const cmd_args &arguments){
     std::string table_path = db_path + "/" + arguments.create.tbl_name;
 
     if(fs::exists(table_path)){
-        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
+        exit_with_error(NULL_TABLE, arguments.create.tbl_name);
     }
-
-    // Create a blank table in the database with the given table name
-    std::ofstream tbl(table_path);
 
     // If there is an additional parameter, which would be the FROM to specify a certain .csv file to read in from
     if(arguments.create.additionals.size() > 0){
@@ -338,6 +375,17 @@ void create_qmt(const cmd_args &arguments){
         }
 
     }
+    else{
+        std::cout << "Here\n";
+        // Create a blank table in the database with the given table name
+        std::ofstream tbl(table_path);
+        int num_leading_zeros = std::log2(PAGE_SIZE);
+        for(int i = 0; i < num_leading_zeros; ++i){
+            tbl << "0";
+        }
+        tbl << std::endl;
+        tbl.close();
+    }
 
     return;
 
@@ -365,7 +413,7 @@ void update_qmt(const cmd_args &arguments){
     std::string schema_path = db_path + "/schemas/" + arguments.update.tbl_name;
 
     if(!fs::exists(table_path)){
-        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
+        exit_with_error(NULL_TABLE, arguments.update.tbl_name);
     }
 
     // Similar to the SELECt keyword, need to keep track of what constraints there are on the UPDATE clause
@@ -662,7 +710,7 @@ void add_col_qmt(const cmd_args &arguments){
     std::string schema_path = db_path + "/schemas/" + arguments.add_cols.tbl_name;
 
     if(!fs::exists(table_path)){
-        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
+        exit_with_error(NULL_TABLE, arguments.add_cols.tbl_name);
     }
 
     // Create a schema if there doesn't exist one already
@@ -692,6 +740,7 @@ void add_col_qmt(const cmd_args &arguments){
     std::vector<std::string> in_memory_table;
 
     // Get all the existing lines of the table
+    int line_num = 0;
     while(std::getline(table, table_line)){
         in_memory_table.push_back(table_line);
     }
@@ -701,6 +750,10 @@ void add_col_qmt(const cmd_args &arguments){
 
     // go through the lines and append the default value to the end of the existing row in the table
     for(size_t i = 0; i < in_memory_table.size(); ++i){
+        if(i == 0){
+            output_table << in_memory_table[i] << std::endl;
+            continue;
+        }
         std::string curr_line = in_memory_table[i];
         if(arguments.add_cols.type == "string"){
             output_table << curr_line + str_default_value + ",\n";
@@ -750,7 +803,7 @@ void delete_qmt(const cmd_args &arguments){
     std::string schema_path = db_path + "/schemas/" + arguments.deleted.tbl_name;
 
     if(!fs::exists(table_path)){
-        exit_with_error(NULL_TABLE, arguments.select.tbl_name);
+        exit_with_error(NULL_TABLE, arguments.deleted.tbl_name);
     }
 
     // If everything is valid, remove the schema and the data table from the database

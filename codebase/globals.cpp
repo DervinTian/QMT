@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <filesystem>
+#include <bitset>
 #include <cassert>
 
 #include "fill_args.h"
@@ -37,6 +38,7 @@ char char_default_value = '0';
 bool bool_default_value = false;
 
 int executing_line_num = 0;
+uint32_t PAGE_SIZE = 4096;
 
 /*
 Function to exit the code with a certain error code and message
@@ -538,7 +540,6 @@ cmp_return_type where_qmt(select_additional_args &constraint, std::unordered_map
 
             // find the result and store it into the lhs_val
             expression_result = math_qmt(constraint.where.left_math.expression_pieces);
-
             if(lhs_type == INT){
                 lhs_val.param_int = expression_result;
                 lhs_val.type = INT;
@@ -810,8 +811,15 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
     int curr_attribute_counter = 0; // used into index into column_names and column_types
     std::string table_line;
 
+    int line_num = 0;
+
     // Go line by line and get each row of data
     while(std::getline(table_file, table_line)){
+
+        if(line_num == 0){
+            line_num++;
+            continue;
+        }
 
         // initialize variables to be used
         std::stringstream table_ss(table_line);
@@ -848,7 +856,6 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
 
                 // If math, fill it in for math things, otherwise just default to a regular compare between like the value type
                 if(constraint.where.type == MATH){
-                    
                     // Want to fill in the variables, so see if it is in the left
                     for(size_t i = 0; i < constraint.where.left_math.variable_pairs[tbl_name].size(); ++i){
                         if(constraint.where.left_math.variable_pairs[tbl_name][i] == curr_col){
@@ -922,7 +929,7 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
                 }
 
                 // idempodent operation to set whether or not the where operation is even there, since it will have a tbl_name for sure
-                if(constraint.where.tbl_name.size() > 0){
+                if(constraint.where.run_where){
                     where_constraint = true;
                 }
                 
@@ -949,6 +956,8 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
                 result[i].push_back(buffer[i]);
             }
         }
+
+        line_num++;
 
     }
 
@@ -1468,16 +1477,27 @@ void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std
     std::string table_line;
 
     int num_attributes = table.size();
+    int num_rows = 0;
+    size_t num_leading_zeros = std::log2(PAGE_SIZE);
 
     // Go through the table and write out the table out to disk
     if(num_attributes > 0){
+        num_rows = table[0].size();
+        std::string binary_num_rows = std::bitset<12>(num_rows).to_string(); // HARDCODED TO HAVE PAGE SIZE OF 4096
+        tbl_file << binary_num_rows << std::endl;
+        std::string output_line;
         for (size_t col = 0; col < table[0].size(); col++) {
             for (size_t row = 0; row < table.size(); row++) {
-                tbl_file << table[row][col] << ",";
+                output_line += table[row][col] + ",";
             }
 
-            tbl_file << "\n";
+            tbl_file << output_line << "\n";
         }
+    }else{
+        for(int i = 0; i < num_leading_zeros; ++i){
+            tbl_file << "0";
+        }
+        tbl_file << std::endl;
     }
 
     tbl_file.close();

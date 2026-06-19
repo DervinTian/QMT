@@ -114,6 +114,8 @@ struct where_args{
     math_args left_math;
     math_args right_math;
 
+    bool run_where;
+
     cmd_type type;
 };
 
@@ -147,7 +149,6 @@ struct select_additional_args{
 
 // Data structure to hold arguments for the SELECT command
 struct select_args{
-    std::string tbl_name;
     std::vector<std::string> sel_columns;
     std::unordered_map<std::string, std::vector<std::string>> table_columns;
     std::vector<std::string> additionals;
@@ -231,6 +232,7 @@ struct cmd_args{
 };
 
 // Global variables to be used
+extern uint32_t PAGE_SIZE;
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, cmd_args&)>> fill_in_cmd;
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, select_additional_args&)>> fill_in_additional_cmds;
 extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;
