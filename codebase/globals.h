@@ -127,6 +127,7 @@ struct from_args{
 struct join_args{
     std::string left_tbl;
     std::string right_tbl;
+    std::string dest_tbl;
 
     where_args on;
     join_types join_type;

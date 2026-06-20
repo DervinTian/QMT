@@ -190,6 +190,7 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
         bool finished_reading_math_expression = false;
 
         while(ss >> tmp){
+            bool is_variable = false;
             if(tmp == "WHERE"){
                 go_time = true;
                 args.curr_type = WHERE;
@@ -227,7 +228,12 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                             math_mode = false;
                         }
                         else{
-                            args.where.rhs_expression = attr;
+                            if(is_variable){
+                                args.where.rhs_expression = tbl_name + "." + attr;
+                            }
+                            else{
+                                args.where.rhs_expression = attr;
+                            }
                             go_time = false;
                         }
                         args.where.run_where = true;
@@ -235,6 +241,7 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                     }
 
                     if(tmp[j] == '.'){
+                        is_variable = true;
                         tbl_name = attr;
                         attr.clear();
                         continue;
@@ -246,7 +253,12 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                             args.where.left_math.variables.push_back(tbl_name + "." + attr);
                         }
                         else if(mode == 0 && !math_mode){
-                            args.where.lhs_expression = attr;
+                            if(is_variable){
+                                args.where.lhs_expression = tbl_name + "." + attr;
+                            }
+                            else{
+                                args.where.lhs_expression = attr;
+                            }
                             mode = 1;
                         }
                         else if(mode == 1 && !math_mode){
@@ -812,6 +824,7 @@ void fill_join_args(const std::vector<std::string> &command, select_additional_a
 
     bool time_go = false;
     bool on_time = false;
+    int mode = 0;
 
     for(size_t i = 0; i < command.size(); ++i){
         std::vector<std::string> line_content;
@@ -825,7 +838,6 @@ void fill_join_args(const std::vector<std::string> &command, select_additional_a
 
         std::stringstream ss(line);
         std::string tmp;
-        std::string tbl_name;
 
         while(ss >> tmp){
             if(tmp == "ON"){
@@ -874,17 +886,35 @@ void fill_join_args(const std::vector<std::string> &command, select_additional_a
 
             // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
             if(time_go){
+                std::string attr;
                 for(size_t j = 0; j < tmp.size(); ++j){
                     if(tmp[j] == '('){
                         continue;
                     }
                     if(tmp[j] == ')'){
-                        args.join.right_tbl = tbl_name;
+                        if(mode == 1){
+                            args.join.right_tbl = attr;
+                        }
+                        else if(mode == 2){
+                            args.join.dest_tbl = attr;
+                        }
                         time_go = false;
                         on_time = true;
                         break;
                     }
-                    tbl_name += tmp[j];
+
+                    if(tmp[j] == ','){
+                        if(mode == 0){
+                            args.join.left_tbl = attr;
+                            mode = 1;
+                        }
+                        else if(mode == 1){
+                            args.join.right_tbl = attr;
+                            mode = 2;
+                        }
+                        continue;
+                    }
+                    attr += tmp[j];
                 }
             } 
             
