@@ -9,6 +9,7 @@
 #include <cctype>
 #include <bitset>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "interpreter.h"
 #include "fill_args.h"
@@ -165,6 +166,16 @@ void select_qmt(const cmd_args &arguments){
 
     // Read in the table into memory with the given constraints, to try and reduce on the memory load
     std::vector<std::vector<std::string>> table = from_qmt(table_path, where_additional_args, arguments.select);
+
+    // std::cout << table.size() << " " << table[0].size() << std::endl;
+    // for(int i = 0; i < table.size(); ++i){
+    //     for(int j = 0; j < table[i].size(); ++j){
+    //         std::cout << table[i][j] << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
+
+
     executing_line_num++; // Update because we actually are executing the FROM keyword
 
     std::vector<std::vector<std::string>> result_table;
@@ -183,13 +194,35 @@ void select_qmt(const cmd_args &arguments){
             return;
         }
 
+        // Otherwise, just show the columns that were specified
+        for(size_t i = 0; i < arguments.select.sel_columns.size(); ++i){
+            result_table.push_back(table[attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
+            result_schema[0].push_back(schema[0][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
+            result_schema[1].push_back(schema[1][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
+        }
+
     }
     else{
 
         std::string join_result_schema;
-        result_table = join_qmt(arguments.select, join_additional_args, table, schema, join_result_schema);
+
+        std::vector<std::vector<std::string>> filtered_schema;
+        filtered_schema.push_back(std::vector<std::string>{});
+        filtered_schema.push_back(std::vector<std::string>{});
+
+        std::unordered_set<std::string> smaller_table_column_names = arguments.select.table_columns.at(smaller_table_size_name);
+        // Otherwise, just show the columns that were specified
+        for(auto &column_name : smaller_table_column_names){
+            filtered_schema[0].push_back(schema[0][attr_to_idx_mapping[column_name]]);
+            filtered_schema[1].push_back(schema[1][attr_to_idx_mapping[column_name]]);
+        }
+
+        result_table = join_qmt(arguments.select, join_additional_args, table, filtered_schema, join_result_schema);
 
         result_schema = vectorize_schema(join_result_schema);
+        for(size_t o = 0; o < result_schema.size(); ++o){
+            std::cout << "$: " << result_schema[0][o] << std::endl;
+        }
 
     }
 

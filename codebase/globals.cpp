@@ -802,11 +802,6 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
     std::vector<std::string>& column_types = schema[1];
     int num_cols = (int)column_names.size();
 
-    for(int i = 0; i < num_cols; ++i){
-        std::vector<std::string> temp;
-        result.push_back(temp);
-    }
-
     // initialize variables to be used later
     int curr_attribute_counter = 0; // used into index into column_names and column_types
     std::string table_line;
@@ -823,8 +818,13 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
         for (const std::string& x : columns_that_we_want) {
             if(x == "*"){
                 select_everyting = true;
+
+                for(size_t i = 0; i < column_names.size(); ++i){
+                    result.push_back(std::vector<std::string>{});
+                }
                 break;
             }
+            result.push_back(std::vector<std::string>{});
         }
     }
 
@@ -1071,11 +1071,23 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_args &select_c
     
     // In the future, if the select statement only wants like some from the right table, we can update that, for now assume the second set is SELECT (*), like select all columns
     std::vector<std::vector<std::string>> right_tbl_schema = read_schema(right_tbl_schema_path);
+
+    std::unordered_set<std::string> right_tbl_column_names = select_constraint.table_columns.at(constraint.join.right_tbl);
+    std::vector<std::vector<std::string>> new_right_tbl_schema;
+    new_right_tbl_schema.push_back(std::vector<std::string>{});
+    new_right_tbl_schema.push_back(std::vector<std::string>{});
+
+    for(size_t x = 0; x < right_tbl_schema[0].size(); ++x){
+        if(right_tbl_column_names.find(right_tbl_schema[0][x]) != right_tbl_column_names.end()){
+            new_right_tbl_schema[0].push_back(right_tbl_schema[0][x]);
+            new_right_tbl_schema[1].push_back(right_tbl_schema[1][x]);
+        }
+    }
     
     attr_to_idx_mapping.clear();
-    for(size_t j = 0; j < right_tbl_schema[0].size(); ++j){
-        join_result_schema += right_tbl_schema[0][j] + "_" + right_tbl_schema[1][j] + ",";
-        attr_to_idx_mapping[right_tbl_schema[0][j]] = j;
+    for(size_t j = 0; j < new_right_tbl_schema[0].size(); ++j){
+        join_result_schema += new_right_tbl_schema[0][j] + "_" + new_right_tbl_schema[1][j] + ",";
+        attr_to_idx_mapping[new_right_tbl_schema[0][j]] = j;
     }
 
     num_attributes = right_tbl.size();
@@ -1105,6 +1117,7 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_args &select_c
 
     join_result = vectorize_csv(csv_format_join_results);
 
+    std::cout << "done joining\n";
     return join_result;
 
 }
@@ -1154,25 +1167,37 @@ std::vector<std::vector<std::string>> left_join_qmt(const select_args &select_co
     
     // In the future, if the select statement only wants like some from the right table, we can update that, for now assume the second set is SELECT (*), like select all columns
     std::vector<std::vector<std::string>> right_tbl_schema = read_schema(right_tbl_schema_path);
+
+    std::unordered_set<std::string> right_tbl_column_names = select_constraint.table_columns.at(constraint.join.right_tbl);
+    std::vector<std::vector<std::string>> new_right_tbl_schema;
+    new_right_tbl_schema.push_back(std::vector<std::string>{});
+    new_right_tbl_schema.push_back(std::vector<std::string>{});
+
+    for(size_t x = 0; x < right_tbl_schema[0].size(); ++x){
+        if(right_tbl_column_names.find(right_tbl_schema[0][x]) != right_tbl_column_names.end()){
+            new_right_tbl_schema[0].push_back(right_tbl_schema[0][x]);
+            new_right_tbl_schema[1].push_back(right_tbl_schema[1][x]);
+        }
+    }
     
     std::string default_values_string;
     attr_to_idx_mapping.clear();
-    for(size_t j = 0; j < right_tbl_schema[0].size(); ++j){
-        join_result_schema += right_tbl_schema[0][j] + "_" + right_tbl_schema[1][j] + ",";
+    for(size_t j = 0; j < new_right_tbl_schema[0].size(); ++j){
+        join_result_schema += new_right_tbl_schema[0][j] + "_" + new_right_tbl_schema[1][j] + ",";
         attr_to_idx_mapping[right_tbl_schema[0][j]] = j;
-        if(right_tbl_schema[1][j] == "string"){
+        if(new_right_tbl_schema[1][j] == "string"){
             default_values_string += str_default_value + ",";
         }
-        else if(right_tbl_schema[1][j] == "int"){
+        else if(new_right_tbl_schema[1][j] == "int"){
             default_values_string += std::to_string(int_default_value) + ",";
         }
-        else if(right_tbl_schema[1][j] == "double"){
+        else if(new_right_tbl_schema[1][j] == "double"){
             default_values_string += std::to_string(double_default_value) + ",";
         }
-        else if(right_tbl_schema[1][j] == "char"){
+        else if(new_right_tbl_schema[1][j] == "char"){
             default_values_string += std::to_string(char_default_value) + ",";
         }
-        else if(right_tbl_schema[1][j] == "bool"){
+        else if(new_right_tbl_schema[1][j] == "bool"){
             default_values_string += std::to_string(bool_default_value) + ",";
         }
     }
