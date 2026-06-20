@@ -23,7 +23,6 @@ Arguments:
 */
 void select_qmt(const cmd_args &arguments){
     std::cout << "Running select implementation, can fill out semantics later\n";
-    executing_line_num++; // update the execution line number
 
     bool join = false;
     bool order = false;
@@ -165,7 +164,7 @@ void select_qmt(const cmd_args &arguments){
     }
 
     // Read in the table into memory with the given constraints, to try and reduce on the memory load
-    std::vector<std::vector<std::string>> table = from_qmt(table_path, where_additional_args);
+    std::vector<std::vector<std::string>> table = from_qmt(table_path, where_additional_args, arguments.select);
     executing_line_num++; // Update because we actually are executing the FROM keyword
 
     std::vector<std::vector<std::string>> result_table;
@@ -184,18 +183,11 @@ void select_qmt(const cmd_args &arguments){
             return;
         }
 
-        // Otherwise, just show the columns that were specified
-        for(size_t i = 0; i < arguments.select.sel_columns.size(); ++i){
-            result_table.push_back(table[attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
-            result_schema[0].push_back(schema[0][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);
-            result_schema[1].push_back(schema[1][attr_to_idx_mapping[arguments.select.sel_columns[i]]]);;
-        }
-
     }
     else{
 
         std::string join_result_schema;
-        result_table = join_qmt(join_additional_args, table, schema, join_result_schema);
+        result_table = join_qmt(arguments.select, join_additional_args, table, schema, join_result_schema);
 
         result_schema = vectorize_schema(join_result_schema);
 
@@ -364,7 +356,7 @@ void create_qmt(const cmd_args &arguments){
                 }
 
                 // Now that we have a schema, read in the table from the data source
-                in_memory_table = from_qmt(add_args.from.data_source, constraints);
+                in_memory_table = from_qmt(add_args.from.data_source, constraints, arguments.select);
 
                 // Write the table according to what we read
                 write_table_to_disk(in_memory_table, arguments.create.tbl_name);
@@ -478,12 +470,12 @@ void update_qmt(const cmd_args &arguments){
     }
 
     // Read in the table the filtered results, so we know what to update
-    std::vector<std::vector<std::string>> filetered_table = from_qmt(table_path, additional_args);
+    std::vector<std::vector<std::string>> filetered_table = from_qmt(table_path, additional_args, arguments.select);
     std::unordered_set<std::string> filtered_results;
     std::unordered_set<size_t> columns_in_there;
 
     // Read in the entire table into memory, so that we can change the exact value from the original table to the new value
-    std::vector<std::vector<std::string>> whole_table = from_qmt(table_path, std::vector<select_additional_args>{});
+    std::vector<std::vector<std::string>> whole_table = from_qmt(table_path, std::vector<select_additional_args>{}, arguments.select);
     size_t num_cols = whole_table.size();
 
     if(filetered_table.size() > 0){
@@ -888,7 +880,7 @@ void copy_qmt(const cmd_args &arguments){
     }
 
     // empty constraints for now, but actually could be a good idea to have some constraints, like only copy select columns over
-    std::vector<std::vector<std::string>> original_table = from_qmt(orig_table_path, std::vector<select_additional_args>{});
+    std::vector<std::vector<std::string>> original_table = from_qmt(orig_table_path, std::vector<select_additional_args>{}, arguments.select);
 
     write_table_to_disk(original_table, arguments.copy.copy_table);
     return;
@@ -965,7 +957,7 @@ void move_qmt(const cmd_args &arguments){
     }
 
     // empty constraints for now, but actually could be a good idea to have some constraints, like only copy select columns over
-    std::vector<std::vector<std::string>> original_table = from_qmt(source_table_path, std::vector<select_additional_args>{});
+    std::vector<std::vector<std::string>> original_table = from_qmt(source_table_path, std::vector<select_additional_args>{}, arguments.select);
     std::vector<std::vector<std::string>> empty_table;
 
     // Going to need to make these atomic somehow

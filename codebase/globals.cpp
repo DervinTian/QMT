@@ -757,7 +757,7 @@ Return:
     - 2D vector containing the table structure
     - Is a vector that contains vectors of column values
 */
-std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints){
+std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints, const select_args &column_constrants){
 
     // Structure of the in-memory table will be defined here
     // Made up of a vector of vectors
@@ -813,6 +813,21 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
 
     int line_num = 0;
 
+    bool select_everyting = false;
+    std::unordered_set<std::string> columns_that_we_want;
+    if(column_constrants.table_columns.find(tbl_name) == column_constrants.table_columns.end()){
+        select_everyting = true;
+    }
+    else{
+        columns_that_we_want = column_constrants.table_columns.at(tbl_name);
+        for (const std::string& x : columns_that_we_want) {
+            if(x == "*"){
+                select_everyting = true;
+                break;
+            }
+        }
+    }
+
     // Go line by line and get each row of data
     while(std::getline(table_file, table_line)){
 
@@ -846,7 +861,14 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
             // find the column names and the types for the line
             curr_col = column_names[curr_attribute_counter];
             curr_col_type = column_types[curr_attribute_counter];
-            buffer.push_back(table_val);
+            if(select_everyting){
+                buffer.push_back(table_val);
+            }
+            else{
+                if(columns_that_we_want.find(column_names[curr_attribute_counter]) != columns_that_we_want.end()){
+                    buffer.push_back(table_val);
+                }
+            }
             curr_attribute_counter = (curr_attribute_counter + 1) % num_cols;
 
             // go through the constraints, maybe more than one line like two WHERE clauses ANDED together
@@ -978,7 +1000,6 @@ std::vector<std::vector<std::string>> vectorize_csv(const std::vector<std::strin
     
     std::vector<std::vector<std::string>> result_table;
     int num_attributes = 0;
-
     if(csv_format_table.size() > 0){
         std::stringstream ss(csv_format_table[0]);
         std::string token;
@@ -989,7 +1010,6 @@ std::vector<std::vector<std::string>> vectorize_csv(const std::vector<std::strin
     else{
         return result_table;
     }
-
     for(int j = 0; j < num_attributes; ++j){
         result_table.push_back(std::vector<std::string>{});
     }
@@ -1015,12 +1035,9 @@ Arguments:
 Returns:
     - an in-memory table that represents the result of the join, where only rows that are in both tables that are joined together are kept, no null values at all
 */
-std::vector<std::vector<std::string>> inner_join_qmt(const select_additional_args &constraint, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema){
+std::vector<std::vector<std::string>> inner_join_qmt(const select_args &select_constraint, const select_additional_args &constraint, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema){
     std::vector<std::vector<std::string>> join_result;
-    std::cout << constraint.join.left_tbl << " joined on " << constraint.join.right_tbl << std::endl;
-    
     std::unordered_map<std::string, std::vector<std::string>> parse_hash;
-
     // Create a mapping to find which attribute goes to which column index
     std::unordered_map<std::string, int> attr_to_idx_mapping;
     for(size_t j = 0; j < left_tbl_schema[0].size(); ++j){
@@ -1049,7 +1066,8 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_additional_arg
     std::string right_tbl_schema_path = db_path + "/schemas/" + constraint.join.right_tbl;
 
     // Now that we have hashed the left table, we need to go to the second set
-    std::vector<std::vector<std::string>> right_tbl = from_qmt(right_tbl_path, std::vector<select_additional_args>{});
+
+    std::vector<std::vector<std::string>> right_tbl = from_qmt(right_tbl_path, std::vector<select_additional_args>{}, select_constraint);
     
     // In the future, if the select statement only wants like some from the right table, we can update that, for now assume the second set is SELECT (*), like select all columns
     std::vector<std::vector<std::string>> right_tbl_schema = read_schema(right_tbl_schema_path);
@@ -1099,9 +1117,8 @@ Arguments:
 Returns:
     - an in-memory table that represents the result of the join, where only rows that are in both tables that are joined together are kept, no null values at all
 */
-std::vector<std::vector<std::string>> left_join_qmt(const select_additional_args &constraint, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema){
+std::vector<std::vector<std::string>> left_join_qmt(const select_args &select_constraint, const select_additional_args &constraint, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema){
     std::vector<std::vector<std::string>> join_result;
-    std::cout << constraint.join.left_tbl << " joined on " << constraint.join.right_tbl << std::endl;
     
     std::unordered_map<std::string, std::vector<std::string>> parse_hash;
 
@@ -1133,7 +1150,7 @@ std::vector<std::vector<std::string>> left_join_qmt(const select_additional_args
     std::string right_tbl_schema_path = db_path + "/schemas/" + constraint.join.right_tbl;
 
     // Now that we have hashed the left table, we need to go to the second set
-    std::vector<std::vector<std::string>> right_tbl = from_qmt(right_tbl_path, std::vector<select_additional_args>{});
+    std::vector<std::vector<std::string>> right_tbl = from_qmt(right_tbl_path, std::vector<select_additional_args>{}, select_constraint);
     
     // In the future, if the select statement only wants like some from the right table, we can update that, for now assume the second set is SELECT (*), like select all columns
     std::vector<std::vector<std::string>> right_tbl_schema = read_schema(right_tbl_schema_path);
@@ -1198,7 +1215,6 @@ std::vector<std::vector<std::string>> left_join_qmt(const select_additional_args
     }
 
     join_result = vectorize_csv(csv_format_join_results);
-
     return join_result;
 }
 
@@ -1210,10 +1226,10 @@ Arguments:
 Returns:
     - an in-memory table that represents the result of the join
 */
-std::vector<std::vector<std::string>> join_qmt(const std::vector<select_additional_args> &constraints, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema){
+std::vector<std::vector<std::string>> join_qmt(const select_args &select_constraint, const std::vector<select_additional_args> &constraints, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema){
     std::cout << "Running join implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
-
+    
     std::vector<std::vector<std::string>> join_result;
 
     for(size_t i = 0; i < constraints.size(); ++i){
@@ -1221,10 +1237,10 @@ std::vector<std::vector<std::string>> join_qmt(const std::vector<select_addition
         std::cout << constraint.join.left_tbl << " joined on " << constraint.join.right_tbl << std::endl;
         
         if(constraint.join.join_type == INNER){
-            join_result = inner_join_qmt(constraint, left_tbl, left_tbl_schema, join_result_schema);
+            join_result = inner_join_qmt(select_constraint, constraint, left_tbl, left_tbl_schema, join_result_schema);
         }
         else if(constraint.join.join_type == LEFT){
-            join_result = left_join_qmt(constraint, left_tbl, left_tbl_schema, join_result_schema);
+            join_result = left_join_qmt(select_constraint, constraint, left_tbl, left_tbl_schema, join_result_schema);
         }
 
         left_tbl = join_result;

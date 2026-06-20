@@ -111,16 +111,23 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
         bool go_time = false;
         int mode = 0;
 
-        std::cout << additionals_time << " " << line << std::endl;
-
         // skip if there is an empty command
         if(line.size() == 0){
             continue;
         }
 
         if(additionals_time){
-            args.select.additionals.push_back(line);
-            continue;
+            std::stringstream line_ss(line);
+            std::string tmp_line;
+            line_ss >> tmp_line;
+            if(tmp_line != "SELECT"){
+                args.select.additionals.push_back(line);
+                continue;
+            }
+            else{
+                additionals_time = false;
+                executing_line_num++;
+            }
         }
 
         std::stringstream ss(line);
@@ -132,6 +139,7 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
             if(tmp == "SELECT"){ // set everything to go if we are executing the SELECT statement
                 go_time = true;
                 continue;
+                executing_line_num++;
             }
 
             // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
@@ -142,7 +150,7 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                         continue;
                     }
                     if(tmp[j] == ')'){
-                        args.select.table_columns[tbl_name].push_back(attr);
+                        args.select.table_columns[tbl_name].insert(attr);
                         args.select.sel_columns.push_back(attr);
                         go_time = false;
                         additionals_time = true;
@@ -155,7 +163,7 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
                             mode = 1;
                         }
                         else{
-                            args.select.table_columns[tbl_name].push_back(attr);
+                            args.select.table_columns[tbl_name].insert(attr);
                             args.select.sel_columns.push_back(attr);
                         }   
                         continue;

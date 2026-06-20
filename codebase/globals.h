@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 #include <cctype>
+#include <unordered_map>
+#include <unordered_set>
 
 // All the different keyword types
 enum cmd_type{
@@ -151,7 +153,7 @@ struct select_additional_args{
 // Data structure to hold arguments for the SELECT command
 struct select_args{
     std::vector<std::string> sel_columns;
-    std::unordered_map<std::string, std::vector<std::string>> table_columns;
+    std::unordered_map<std::string, std::unordered_set<std::string>> table_columns;
     std::vector<std::string> additionals;
 
     select_additional_args additional_args;
@@ -253,9 +255,9 @@ extern bool bool_default_value;
 
 // Additional keywords that can be used in multiple other operations, WHERE, VALUES, ...
 cmp_return_type where_qmt(const select_additional_args &constraint);
-std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints);
+std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints, const select_args &column_constrants);
 double math_qmt(const std::vector<std::string> &expression_pieces);
-std::vector<std::vector<std::string>> join_qmt(const std::vector<select_additional_args> &constraints, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema);
+std::vector<std::vector<std::string>> join_qmt(const select_args &select_constraint, const std::vector<select_additional_args> &constraints, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema);
 std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additional_args> &constraints, const std::vector<std::vector<std::string>> &tbl, const std::vector<std::vector<std::string>> &tbl_schema);
 
 // Additional functions to be used
