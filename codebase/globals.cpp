@@ -117,6 +117,29 @@ void exit_with_error(int error_code, std::string message){
 }
 
 /*
+Function to convert a string into it's lower-case conuter-part
+Arguments:
+    - pathname: pathname to be checked
+*/
+std::string convert_to_lower_case(std::string &str, bool copy){
+
+    if(!copy){
+        for (char& c : str) {
+            c = std::tolower(static_cast<unsigned char>(c));
+        }
+        return str;
+    }
+    else{
+        std::string str_copy = str;
+        for (char& c : str_copy) {
+            c = std::tolower(static_cast<unsigned char>(c));
+        }
+        return str_copy;
+    }
+
+}
+
+/*
 Function to check if the pathname is a valid one to look within the database.
 Arguments:
     - pathname: pathname to be checked

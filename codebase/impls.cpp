@@ -50,9 +50,7 @@ void select_qmt(const cmd_args &arguments){
         ss >> cmd_type;
         
         // lower-case the command to not worry about any weird camel-casing cases
-        for (char& c : cmd_type) {
-            c = std::tolower(static_cast<unsigned char>(c));
-        }
+        convert_to_lower_case(cmd_type);
 
         // Fill in the arguments for the specified keyword
         if(cmd_type == "where"){
@@ -332,9 +330,7 @@ void create_qmt(const cmd_args &arguments){
             std::string cmd_type;
             ss >> cmd_type;
             
-            for (char& c : cmd_type) {
-                c = std::tolower(static_cast<unsigned char>(c));
-            }
+            convert_to_lower_case(cmd_type);
             select_additional_args add_args;
 
             fill_in_additional_cmds[cmd_type](arguments.create.additionals, add_args);
@@ -458,9 +454,7 @@ void update_qmt(const cmd_args &arguments){
         std::stringstream ss(arguments.update.additionals[i]);
         ss >> cmd_type;
         
-        for (char& c : cmd_type) {
-            c = std::tolower(static_cast<unsigned char>(c));
-        }
+        convert_to_lower_case(cmd_type);
 
         // Fill in the arguments for the specified keyword, just where for now
         if(cmd_type == "where"){

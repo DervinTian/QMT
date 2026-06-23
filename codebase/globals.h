@@ -262,6 +262,7 @@ std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additio
 
 // Additional functions to be used
 void exit_with_error(int error_code, std::string message);
+std::string convert_to_lower_case(std::string &str, bool copy = false);
 bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
 std::string trim_string(std::string value);

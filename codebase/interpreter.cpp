@@ -112,9 +112,7 @@ bool run_interpreter(int starting_line, int end_line){
         ss >> cmd_type;
 
         // The keyword for the command, should be the first line essentially
-        for (char& c : cmd_type) {
-            c = std::tolower(static_cast<unsigned char>(c));
-        }
+        convert_to_lower_case(cmd_type);
 
         // Look to see if that is even a valid command
         auto it = fill_in_cmd.find(cmd_type);

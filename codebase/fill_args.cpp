@@ -116,11 +116,14 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
             continue;
         }
 
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
+
         if(additionals_time){
             std::stringstream line_ss(line);
             std::string tmp_line;
             line_ss >> tmp_line;
-            if(tmp_line != "SELECT"){
+            std::string lc_tmp_line = convert_to_lower_case(tmp_line, copy);
+            if(lc_tmp_line != "select"){
                 args.select.additionals.push_back(line);
                 continue;
             }
@@ -136,7 +139,8 @@ void fill_select_args(const std::vector<std::string> &command, cmd_args &args){
 
         // Read in each white-space terminated string into the tmp string
         while(ss >> tmp){
-            if(tmp == "SELECT"){ // set everything to go if we are executing the SELECT statement
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "select"){ // set everything to go if we are executing the SELECT statement
                 go_time = true;
                 continue;
                 executing_line_num++;
@@ -197,9 +201,12 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
         bool math_mode = false;
         bool finished_reading_math_expression = false;
 
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
+
         while(ss >> tmp){
             bool is_variable = false;
-            if(tmp == "WHERE"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "where"){
                 go_time = true;
                 args.curr_type = WHERE;
                 continue;
@@ -297,7 +304,9 @@ void fill_where_args(const std::vector<std::string> &command, select_additional_
                 else if(math_mode && !finished_reading_math_expression && mode == 2){
                     args.where.right_math.expression_pieces.push_back(attr);
                 }
-                if(attr == "MATH"){
+
+                std::string lc_attr = convert_to_lower_case(attr, copy);
+                if(lc_attr == "math"){
                     math_mode = true;
                     finished_reading_math_expression = false;
                     args.where.lhs_expression = "";
@@ -332,6 +341,8 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
         bool go_time = false;
         bool values_time = false;
 
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
+
         if(line.size() == 0){
             continue;
         }
@@ -340,11 +351,12 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
         std::string tmp;
 
         while(ss >> tmp){
-            if(tmp == "INSERT"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "insert"){
                 go_time = true;
                 continue;
             }
-            if(tmp == "VALUES"){
+            if(lc_tmp == "values"){
                 values_time = true;
                 continue;
             }
@@ -430,6 +442,8 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
 
         bool time_go = false;
 
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
+
         if(line.size() == 0){
             continue;
         }
@@ -443,7 +457,8 @@ void fill_create_args(const std::vector<std::string> &command, cmd_args &args){
         std::string tbl_name;
         
         while(ss >> tmp){
-            if(tmp == "CREATE"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "create"){
                 time_go = true;
                 continue;
             }
@@ -479,25 +494,27 @@ void fill_from_args(const std::vector<std::string> &command, select_additional_a
 
         bool time_go = false;
         bool alias_time = false;
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
         std::stringstream ss(line);
         std::string tmp;
         std::string data_source;
         
         while(ss >> tmp){
-            if(tmp == "FROM"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "from"){
                 time_go = true;
                 args.curr_type = FROM;
                 continue;
             }
-            if(tmp == "AS"){
+            if(lc_tmp == "as"){
                 alias_time = true;
                 continue;
             }
 
-            if(tmp == "NO_HEADER"){
+            if(lc_tmp == "no_header"){
                 args.from.header = 0;
             }
-            else if(tmp == "HEADER"){
+            else if(lc_tmp == "header"){
                 args.from.header = 1;
             }
             
@@ -547,12 +564,14 @@ void fill_add_col_args(const std::vector<std::string> &command, cmd_args &args){
         }
 
         bool go_time = false;
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
 
         std::stringstream ss(line);
         std::string tmp;
 
         while(ss >> tmp){
-            if(tmp == "ADDCOL"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "addcol"){
                 go_time = true;
                 continue;
             }
@@ -619,17 +638,19 @@ void fill_update_args(const std::vector<std::string> &command, cmd_args &args){
         std::string tmp;
         std::string tbl_name;
         std::pair<std::string, std::string> set_value_pair;
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
 
         while(ss >> tmp){
-            if(tmp == "UPDATE"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "update"){
                 autobots = true;
                 continue;
             }
-            else if(tmp == "SET"){
+            else if(lc_tmp == "set"){
                 set = true;
                 continue;
             }
-            else if(tmp != "SET" && !set && !autobots){
+            else if(lc_tmp != "set" && !set && !autobots){
                 if(!additional){    
                     args.update.additionals.push_back(line);
                     additional = true;
@@ -697,6 +718,7 @@ void fill_alter_args(const std::vector<std::string> &command, cmd_args &args){
 
         bool rename = false;
         bool modify = false;
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
 
         if(line.size() == 0){
             continue;
@@ -707,16 +729,17 @@ void fill_alter_args(const std::vector<std::string> &command, cmd_args &args){
         std::string tbl_name;
 
         while(ss >> tmp){
-            if(tmp == "ALTER"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "alter"){
                 roll_out = true;
                 continue;
             }
-            else if(tmp == "MODIFY"){
+            else if(lc_tmp == "modify"){
                 modify = true;
                 args.alter.modify = 1;
                 continue;
             }
-            else if(tmp == "RENAME"){
+            else if(lc_tmp == "rename"){
                 rename = true;
                 args.alter.rename = 1;
                 continue;
@@ -788,6 +811,7 @@ void fill_delete_args(const std::vector<std::string> &command, cmd_args &args){
         std::string line = command[i];
 
         bool time_go = false;
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
 
         if(line.size() == 0){
             continue;
@@ -798,7 +822,8 @@ void fill_delete_args(const std::vector<std::string> &command, cmd_args &args){
         std::string tbl_name;
         
         while(ss >> tmp){
-            if(tmp == "DELETE"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "delete"){
                 time_go = true;
                 continue;
             }
@@ -839,6 +864,7 @@ void fill_join_args(const std::vector<std::string> &command, select_additional_a
         std::string line = command[i];
 
         int mode = 0;
+        bool copy = true; // flag to represent if we want to have a copy of the lower_cased string
 
         if(line.size() == 0){
             continue;
@@ -848,17 +874,19 @@ void fill_join_args(const std::vector<std::string> &command, select_additional_a
         std::string tmp;
 
         while(ss >> tmp){
-            if(tmp == "ON"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "on"){
                 continue;
             }
-            else if(tmp == "JOIN"){
+            else if(lc_tmp == "join"){
                 time_go = true;
                 ss >> tmp;
-                if(tmp == "LEFT"){
+                lc_tmp = convert_to_lower_case(tmp, copy);
+                if(lc_tmp == "left"){
                     args.join.join_type = LEFT;
                     continue;
                 }
-                else if(tmp == "INNER"){
+                else if(lc_tmp == "inner"){
                     args.join.join_type = INNER;
                     continue;
                 }
@@ -944,6 +972,7 @@ void fill_copy_args(const std::vector<std::string> &command, cmd_args &args){
         std::string line = command[i];
 
         bool time_go = false;
+        bool copy = true; // flag to set if we want a copy of the lower cased value
 
         if(line.size() == 0){
             continue;
@@ -953,7 +982,8 @@ void fill_copy_args(const std::vector<std::string> &command, cmd_args &args){
         std::string tmp;
 
         while(ss >> tmp){
-            if(tmp == "COPY"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "copy"){
                 time_go = true;
                 continue;
             }
@@ -994,6 +1024,7 @@ void fill_move_args(const std::vector<std::string> &command, cmd_args &args){
         std::string line = command[i];
 
         bool time_go = false;
+        bool copy = true; // flag to set if we want a copy of the lower cased value
 
         if(line.size() == 0){
             continue;
@@ -1003,7 +1034,8 @@ void fill_move_args(const std::vector<std::string> &command, cmd_args &args){
         std::string tmp;
 
         while(ss >> tmp){
-            if(tmp == "MOVE"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "move"){
                 time_go = true;
                 continue;
             }
@@ -1044,6 +1076,7 @@ void fill_order_args(const std::vector<std::string> &command, select_additional_
         std::string line = command[i];
 
         bool time_go = false;
+        bool copy = true; // flag to set if we want a copy of the lower cased value
 
         if(line.size() == 0){
             continue;
@@ -1053,7 +1086,8 @@ void fill_order_args(const std::vector<std::string> &command, select_additional_
         std::string tmp;
         
         while(ss >> tmp){
-            if(tmp == "ORDER"){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "order"){
                 time_go = true;
                 continue;
             }
