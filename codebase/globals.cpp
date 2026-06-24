@@ -30,6 +30,7 @@ std::unordered_map<std::string, std::function<bool(const cmp_object&, const cmp_
 std::string db_path;
 std::vector<std::string> in_memory_script;
 std::unordered_map<std::string, std::string> alias_to_attr_mapping;
+intermediate_results_buffer intermediate_results;
 
 int int_default_value = 0;
 double double_default_value = 0.0;
@@ -168,6 +169,44 @@ bool valid_table(std::string table){
     }
 
     return true;
+}
+
+/*
+Function to check if the two schemas are compatible to transfer data across
+Arguments:
+    - table: value, the value to be trimmed
+*/
+void check_compatible_schemas(const std::vector<std::string> &source_tbl_schema_types, const std::vector<std::string> &dest_tbl_schema_types){
+    // Go through the types and if there is a type conversion that cannot be made, then error out
+    // Also copy values completely later, so that we can avoid having partially copied over tables and stuff
+    
+    if(source_tbl_schema_types.size() != dest_tbl_schema_types.size()){
+        exit_with_error(DIFF_SCHEMAS, "");
+    }
+
+    for(size_t i = 0; i < source_tbl_schema_types.size(); ++i){
+        if(dest_tbl_schema_types[i] == "string"){
+            continue; // Anything can convert into a string
+        }
+        else if(dest_tbl_schema_types[i] == "char"){
+            if(source_tbl_schema_types[i] != "char"){
+                exit_with_error(DIFF_SCHEMAS, "");
+            }
+        }
+        else if(dest_tbl_schema_types[i] == "bool"){
+            if(source_tbl_schema_types[i] != "bool"){
+                exit_with_error(DIFF_SCHEMAS, "");
+            }
+        }
+        else if(dest_tbl_schema_types[i] == "int" || dest_tbl_schema_types[i] == "double"){
+            if(source_tbl_schema_types[i] != "int" && source_tbl_schema_types[i] != "double"){
+                exit_with_error(DIFF_SCHEMAS, "");
+            }
+        }
+        else{
+            exit_with_error(UNKNOWN_TYPE, dest_tbl_schema_types[i]);
+        }
+    }
 }
 
 /*

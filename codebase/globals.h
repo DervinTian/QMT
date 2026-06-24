@@ -24,6 +24,8 @@ enum cmd_type{
     JOIN,
     ORDER,
     COPY,
+    MOVE,
+    APPEND,
     NONE
 };
 
@@ -219,6 +221,12 @@ struct move_args{
     std::string dest_table;
 };
 
+// Data structure to hold argumnents for the APPEND command
+struct append_args{
+    std::string dest_table;
+    select_args select;
+};
+
 // Data structure to hold all the arguments to be passed into the implementations
 struct cmd_args{
     cmd_type cmd;
@@ -232,6 +240,13 @@ struct cmd_args{
     alter_args alter;
     copy_args copy;
     move_args move;
+    append_args append;
+};
+
+// Data structure to hold all the arguments to be passed into the implementations
+struct intermediate_results_buffer{
+    std::vector<std::vector<std::string>> buffer_table;
+    std::vector<std::vector<std::string>> buffer_table_schema;
 };
 
 // Global variables to be used
@@ -243,6 +258,7 @@ extern std::unordered_map<std::string, std::function<void(const select_additiona
 extern std::unordered_map<std::string, std::function<bool(const std::string&)>> check_value_against_type;
 extern std::unordered_map<std::string, std::function<bool(const cmp_object&, const cmp_object&)>> comparators;
 extern std::unordered_map<std::string, std::string> alias_to_attr_mapping;
+extern intermediate_results_buffer intermediate_results;
 extern std::string db_path;
 extern std::vector<std::string> in_memory_script;
 extern int executing_line_num;
@@ -265,6 +281,7 @@ void exit_with_error(int error_code, std::string message);
 std::string convert_to_lower_case(std::string &str, bool copy = false);
 bool valid_table(std::string table);
 bool valid_pathname(std::string pathname);
+void check_compatible_schemas(const std::vector<std::string> &source_tbl_schema_types, const std::vector<std::string> &dest_tbl_schema_types);
 std::string trim_string(std::string value);
 std::pair<std::string, std::string> split_table_column(std::string value);
 std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);

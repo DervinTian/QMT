@@ -1125,3 +1125,77 @@ void fill_order_args(const std::vector<std::string> &command, select_additional_
         }
     }
 }
+
+/*
+Function in order to fill in the arguments APPEND to be passed into the QMT command implementation.
+Arguments:
+    - command: A string of QMT lines/commands
+    - args: The arguments to fill in, later to be passed into the implementation
+*/
+void fill_append_args(const std::vector<std::string> &command, cmd_args &args){
+    std::cout << "Order function added to the function map, can fill out args for Order statements" << std::endl;
+
+    bool append_mode = false;
+    // For now assume that the first line of the command will always be the append keyword
+    for(size_t i = 0; i < command.size(); ++i){
+        std::vector<std::string> line_content;
+        std::string line = command[i];
+
+        bool time_go = false;
+        bool copy = true; // flag to set if we want a copy of the lower cased value
+
+        if(line.size() == 0){
+            continue;
+        }
+
+        std::stringstream ss(line);
+        std::string tmp;
+
+        while(ss >> tmp){
+            std::string lc_tmp = convert_to_lower_case(tmp, copy);
+            if(lc_tmp == "append"){
+                time_go = true;
+                continue;
+            }
+
+            // If we are good to go, then go through the parenthesis, and for each comma delimited value assign it to it's appropriate field in the arguments
+            if(time_go){
+                std::string attr;
+                for(size_t j = 0; j < tmp.size(); ++j){
+                    if(tmp[j] == '('){
+                        continue;
+                    }
+                    if(tmp[j] == ')'){
+                        args.append.dest_table = attr;
+                        time_go = false;
+                        append_mode = true;
+                        break;
+                    }
+                    attr += tmp[j];
+                }
+            }  
+
+            if(append_mode){
+                break;
+            }
+            
+        }
+    }
+
+    if(append_mode){
+        std::vector<std::string> command_copy;
+        cmd_args append_select_args;
+
+        for(size_t i = 1; i < command.size(); ++i){
+            command_copy.push_back(command[i]);
+        }
+
+        fill_select_args(command_copy, append_select_args);
+        args.append.select = append_select_args.select;
+
+    }
+    else{
+        std::cout << "Couldn't find append mode!\n";
+        exit_with_error(LINE_ERROR, "");
+    }
+}

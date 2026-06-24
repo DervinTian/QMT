@@ -20,3 +20,4 @@ void add_col_qmt(const cmd_args &arguments);
 void delete_qmt(const cmd_args &arguments);
 void copy_qmt(const cmd_args &arguments);
 void move_qmt(const cmd_args &arguments);
+void append_qmt(const cmd_args &arguments);

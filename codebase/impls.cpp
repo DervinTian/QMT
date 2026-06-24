@@ -144,8 +144,8 @@ void select_qmt(const cmd_args &arguments){
             smallest_table_so_far = decimal_row_count;
             smaller_table_size_name = pair.first;
         }
-    }
 
+    }
 
     std::string table_path = db_path + "/" + smaller_table_size_name;
     std::string schema_path = db_path + "/schemas/" + smaller_table_size_name;
@@ -188,6 +188,11 @@ void select_qmt(const cmd_args &arguments){
             if(order){
                 table = order_qmt(order_additional_args, table, schema);
             }
+
+            // Write these results to an intermediate buffer, so that we can chain results together from one to another
+            intermediate_results.buffer_table = table;
+            intermediate_results.buffer_table_schema = schema;
+
             display_in_memory_table(table, schema);
             return;
         }
@@ -218,18 +223,21 @@ void select_qmt(const cmd_args &arguments){
         result_table = join_qmt(arguments.select, join_additional_args, table, filtered_schema, join_result_schema);
 
         result_schema = vectorize_schema(join_result_schema);
-        for(size_t o = 0; o < result_schema.size(); ++o){
-            std::cout << "$: " << result_schema[0][o] << std::endl;
-        }
 
     }
 
     if(order){
         result_table = order_qmt(order_additional_args, result_table, result_schema);
     }
+
+    // Write these results to an intermediate buffer, so that we can chain results together from one to another
+    intermediate_results.buffer_table = result_table;
+    intermediate_results.buffer_table_schema = result_schema;
+
     // Print it out
     display_in_memory_table(result_table, result_schema);
 
+    std::cout << "Finished running select implementation\n";
     return;
 
 }
@@ -261,7 +269,6 @@ void insert_qmt(const cmd_args &arguments){
     std::ifstream input_tbl(table_path);
     std::string binary_row_count;
     std::getline(input_tbl, binary_row_count);
-    std::cout << binary_row_count << std::endl;
     int num_rows = std::stoi(binary_row_count, nullptr, 2);
     input_tbl.close();
 
@@ -880,31 +887,7 @@ void copy_qmt(const cmd_args &arguments){
         exit_with_error(DIFF_SCHEMAS, "");
     }
 
-    // Go through the types and if there is a type conversion that cannot be made, then error out
-    // Also copy values completely later, so that we can avoid having partially copied over tables and stuff
-    for(size_t i = 0; i < original_tbl_schema_types.size(); ++i){
-        if(copy_tbl_schema_types[i] == "string"){
-            continue; // Anything can convert into a string
-        }
-        else if(copy_tbl_schema_types[i] == "char"){
-            if(original_tbl_schema_types[i] != "char"){
-                exit_with_error(DIFF_SCHEMAS, "");
-            }
-        }
-        else if(copy_tbl_schema_types[i] == "bool"){
-            if(original_tbl_schema_types[i] != "bool"){
-                exit_with_error(DIFF_SCHEMAS, "");
-            }
-        }
-        else if(copy_tbl_schema_types[i] == "int" || copy_tbl_schema_types[i] == "double"){
-            if(original_tbl_schema_types[i] != "int" && original_tbl_schema_types[i] != "double"){
-                exit_with_error(DIFF_SCHEMAS, "");
-            }
-        }
-        else{
-            exit_with_error(UNKNOWN_TYPE, copy_tbl_schema_types[i]);
-        }
-    }
+    check_compatible_schemas(original_tbl_schema_types, copy_tbl_schema_types);
 
     // empty constraints for now, but actually could be a good idea to have some constraints, like only copy select columns over
     std::vector<std::vector<std::string>> original_table = from_qmt(orig_table_path, std::vector<select_additional_args>{}, arguments.select);
@@ -957,31 +940,7 @@ void move_qmt(const cmd_args &arguments){
         exit_with_error(DIFF_SCHEMAS, "");
     }
 
-    // Go through the types and if there is a type conversion that cannot be made, then error out
-    // Also copy values completely later, so that we can avoid having partially copied over tables and stuff
-    for(size_t i = 0; i < source_tbl_schema_types.size(); ++i){
-        if(dest_tbl_schema_types[i] == "string"){
-            continue; // Anything can convert into a string
-        }
-        else if(dest_tbl_schema_types[i] == "char"){
-            if(source_tbl_schema_types[i] != "char"){
-                exit_with_error(DIFF_SCHEMAS, "");
-            }
-        }
-        else if(dest_tbl_schema_types[i] == "bool"){
-            if(source_tbl_schema_types[i] != "bool"){
-                exit_with_error(DIFF_SCHEMAS, "");
-            }
-        }
-        else if(dest_tbl_schema_types[i] == "int" || dest_tbl_schema_types[i] == "double"){
-            if(source_tbl_schema_types[i] != "int" && source_tbl_schema_types[i] != "double"){
-                exit_with_error(DIFF_SCHEMAS, "");
-            }
-        }
-        else{
-            exit_with_error(UNKNOWN_TYPE, dest_tbl_schema_types[i]);
-        }
-    }
+    check_compatible_schemas(source_tbl_schema_types, dest_tbl_schema_types);
 
     // empty constraints for now, but actually could be a good idea to have some constraints, like only copy select columns over
     std::vector<std::vector<std::string>> original_table = from_qmt(source_table_path, std::vector<select_additional_args>{}, arguments.select);
@@ -992,4 +951,49 @@ void move_qmt(const cmd_args &arguments){
     write_table_to_disk(empty_table, arguments.move.source_table);
 
     return;
+}
+
+/*
+Implementation for the APPEND function
+Arguments:
+    - arguments: contains the table that we want to move, and the table where want it to be moved to
+*/
+void append_qmt(const cmd_args &arguments){
+    std::cout << "Running append implementation, can fill out semantics later\n";
+    executing_line_num++; // update the execution line number
+
+    // Do error checking to ensure that the database and the tables are valid paths
+    if(!valid_pathname(db_path)){
+        exit_with_error(INVALID_DATABASE_NAME, "");
+    }
+
+    if(!valid_table(arguments.append.dest_table)){
+        exit_with_error(INVALID_TABLENAME, arguments.append.dest_table);
+    }
+
+    std::string dest_table_path = db_path + "/" + arguments.append.dest_table;
+    std::string dest_schema_path = db_path + "/schemas/" + arguments.append.dest_table;
+
+    if(!fs::exists(dest_table_path)){
+        exit_with_error(NULL_TABLE, arguments.move.dest_table);
+    }
+
+    std::vector<std::string> dest_schema_types = read_schema(dest_schema_path)[1];
+
+    cmd_args inner_select_args;
+    inner_select_args.select = arguments.append.select;
+    select_qmt(inner_select_args);
+    check_compatible_schemas(dest_schema_types, intermediate_results.buffer_table_schema[1]);
+
+    std::vector<std::vector<std::string>> &table = intermediate_results.buffer_table;
+    for (size_t col = 0; col < table[0].size(); col++) {
+        cmd_args insert_args;
+        insert_args.insert.tbl_name = arguments.append.dest_table;
+        for (size_t row = 0; row < table.size(); row++) {
+            insert_args.insert.values.push_back(table[row][col]);
+        }
+
+        insert_qmt(insert_args);
+
+    }
 }

@@ -25,6 +25,7 @@ void init_function_map(){
     fill_in_cmd["alter"] = fill_alter_args;
     fill_in_cmd["copy"] = fill_copy_args;
     fill_in_cmd["move"] = fill_move_args;
+    fill_in_cmd["append"] = fill_append_args;
     fill_in_additional_cmds["where"] = fill_where_args;
     fill_in_additional_cmds["from"] = fill_from_args;
     fill_in_additional_cmds["join"] = fill_join_args;
@@ -39,6 +40,7 @@ void init_function_map(){
     cmd_impls["alter"] = alter_qmt;
     cmd_impls["copy"] = copy_qmt;
     cmd_impls["move"] = move_qmt;
+    cmd_impls["append"] = append_qmt;
 
     check_value_against_type["string"] = check_string;
     check_value_against_type["int"] = check_int;
