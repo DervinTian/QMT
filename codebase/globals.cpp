@@ -40,6 +40,7 @@ bool bool_default_value = false;
 
 int executing_line_num = 0;
 uint32_t PAGE_SIZE = 4096;
+uint64_t DISK_SIZE = 1048576; // Just set it to 1MB for now
 
 /*
 Function to exit the code with a certain error code and message

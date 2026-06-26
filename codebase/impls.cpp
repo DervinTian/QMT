@@ -120,12 +120,6 @@ void select_qmt(const cmd_args &arguments){
         std::cerr << "Caught exception" << std::endl;
     }
 
-    // Check to make sure that all the names and paths are valid
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
-
-
     std::string smaller_table_size_name;
     int smallest_table_so_far = INT_MAX;
     for(auto &pair : arguments.select.table_columns){
@@ -252,9 +246,6 @@ void insert_qmt(const cmd_args &arguments){
     executing_line_num++; // update the execution line number
 
     // Check to make sure that all the names and paths are valid
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
 
     if(!valid_table(arguments.insert.tbl_name)){
         exit_with_error(INVALID_TABLENAME, arguments.insert.tbl_name);
@@ -315,9 +306,6 @@ void create_qmt(const cmd_args &arguments){
     executing_line_num++; // update the execution line number
 
     // Check to make sure that all the names and paths are valid
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
 
     if(!valid_table(arguments.create.tbl_name)){
         exit_with_error(INVALID_TABLENAME, arguments.create.tbl_name);
@@ -429,9 +417,6 @@ void update_qmt(const cmd_args &arguments){
     executing_line_num++;
 
     // Check to make sure that all the names and paths are valid
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
 
     if(!valid_table(arguments.update.tbl_name)){
         exit_with_error(INVALID_TABLENAME, arguments.update.tbl_name);
@@ -724,9 +709,6 @@ void add_col_qmt(const cmd_args &arguments){
     executing_line_num++; // update the execution line number
 
     // Check to make sure that all the names and paths are valid
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
 
     if(!valid_table(arguments.create.tbl_name)){
         exit_with_error(INVALID_TABLENAME, arguments.create.tbl_name);
@@ -817,9 +799,6 @@ void delete_qmt(const cmd_args &arguments){
     executing_line_num++; // update the execution line number
 
     // Do error checking to ensure that the database and the tables are valid paths
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
 
     if(!valid_table(arguments.deleted.tbl_name)){
         exit_with_error(INVALID_TABLENAME, arguments.deleted.tbl_name);
@@ -851,11 +830,6 @@ Arguments:
 void copy_qmt(const cmd_args &arguments){
     std::cout << "Running delete implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
-
-    // Do error checking to ensure that the database and the tables are valid paths
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
 
     if(!valid_table(arguments.copy.orig_table)){
         exit_with_error(INVALID_TABLENAME, arguments.copy.orig_table);
@@ -906,9 +880,6 @@ void move_qmt(const cmd_args &arguments){
     executing_line_num++; // update the execution line number
 
     // Do error checking to ensure that the database and the tables are valid paths
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
 
     if(!valid_table(arguments.move.source_table)){
         exit_with_error(INVALID_TABLENAME, arguments.move.source_table);
@@ -963,9 +934,6 @@ void append_qmt(const cmd_args &arguments){
     executing_line_num++; // update the execution line number
 
     // Do error checking to ensure that the database and the tables are valid paths
-    if(!valid_pathname(db_path)){
-        exit_with_error(INVALID_DATABASE_NAME, "");
-    }
 
     if(!valid_table(arguments.append.dest_table)){
         exit_with_error(INVALID_TABLENAME, arguments.append.dest_table);

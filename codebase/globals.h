@@ -251,6 +251,7 @@ struct intermediate_results_buffer{
 
 // Global variables to be used
 extern uint32_t PAGE_SIZE;
+extern uint64_t DISK_SIZE; // Going to work under the assumption that the disk size can be divided up evenly into pages
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, cmd_args&)>> fill_in_cmd;
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, select_additional_args&)>> fill_in_additional_cmds;
 extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;

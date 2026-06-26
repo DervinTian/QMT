@@ -83,6 +83,12 @@ Returns:
 */
 bool run_interpreter(int starting_line, int end_line){
     alias_to_attr_mapping.clear(); // reset variable scopes during each command
+
+    // Move the check for the database out here, since it shouldn't change for the duration of the command
+    if(!valid_pathname(db_path)){
+        exit_with_error(INVALID_DATABASE_NAME, "");
+    }
+
     // Want to read in the lines into a command in-memory
     std::vector<std::string> command;
     for(int i = starting_line; i < end_line + 1; ++i){
