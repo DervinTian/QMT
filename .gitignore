@@ -4,6 +4,8 @@ additional/
 codebase/testcases/
 codebase/.DS_Store
 codebase/query_result
-codebase/run.dSYM/
+codebase/*.dSYM/
 test.cpp
 test
+codebase/vm_disk.bin
+codebase/test*

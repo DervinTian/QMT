@@ -1,7 +1,7 @@
 #include <fstream>
 #include <vector>
 
-#include "globals.h"
+#include "globals_disk.h"
 
 // Create our own simple disk to use for the database: Each table will have an inode, and then each table will have it's own disk blocks
 // It's essentially a filesystem without directories
@@ -13,10 +13,17 @@ owner? Could be useful cuz I was thinking that we could somehow like save an ima
 child_disk_blocks:
 */
 
+// compile cmd: g++ initialze_disk.cpp -o initialze_disk
+
+namespace fs = std::filesystem;
+
 int main() {
     const size_t size = DISK_SIZE; // 1 MB
 
-    const int num_pages = DISK_SIZE / PAGE_SIZE;
+    if(fs::exists("vm_disk.bin")){
+        std::cout << "Virtual disk already exists!\n";
+        exit(100);
+    }
 
     std::ofstream file("vm_disk.bin", std::ios::binary);
     std::vector<char> buffer(size, 0);
