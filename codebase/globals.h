@@ -251,7 +251,6 @@ struct intermediate_results_buffer{
 
 // Global variables to be used
 extern uint32_t PAGE_SIZE;
-extern uint64_t DISK_SIZE; // Going to work under the assumption that the disk size can be divided up evenly into pages
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, cmd_args&)>> fill_in_cmd;
 extern std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, select_additional_args&)>> fill_in_additional_cmds;
 extern std::unordered_map<std::string, std::function<void(const cmd_args&)>> cmd_impls;
@@ -278,6 +277,13 @@ std::vector<std::vector<std::string>> join_qmt(const select_args &select_constra
 std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additional_args> &constraints, const std::vector<std::vector<std::string>> &tbl, const std::vector<std::vector<std::string>> &tbl_schema);
 
 // Additional functions to be used
+// Functions used to check the type of the value passed as a string
+bool check_string(const std::string &value);
+bool check_int(const std::string &value);
+bool check_double(const std::string &value);
+bool check_bool(const std::string &value);
+bool check_char(const std::string &value);
+
 void exit_with_error(int error_code, std::string message);
 std::string convert_to_lower_case(std::string &str, bool copy = false);
 bool valid_table(std::string table);
