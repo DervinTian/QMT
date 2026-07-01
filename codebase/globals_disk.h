@@ -31,8 +31,8 @@ Inode layout size:
 struct inode {
     char type;
     uint32_t size;
-    char owner[MAX_OWNER_SIZE];
-    char tbl_name[MAX_TABLENAME_SIZE];
+    char owner[MAX_OWNER_SIZE + 1];
+    char tbl_name[MAX_TABLENAME_SIZE + 1];
     uint32_t blocks[INODE_MAX_BLOCKS];
 };
 
@@ -42,5 +42,7 @@ extern std::unordered_set<int> free_disk_blocks;
 
 extern const std::string VM_DISK;
 
-void convert_block_to_inode(inode &curr_inode);
+void read_block_to_inode(inode &curr_inode, int blocknum);
+void write_inode_to_block(const inode& curr_inode, int blocknum);
+uint32_t to_big_endian(uint32_t x);
 std::unordered_set<int> get_free_blocks();
