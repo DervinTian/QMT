@@ -1,9 +1,12 @@
 #include <iostream>
 #include <fstream>
+#include <cassert>
 
 #include "globals_disk.h"
 
 std::unordered_set<int> free_disk_blocks;
+std::unordered_set<int> used_disk_blocks;
+std::unordered_map<std::string, int> table_inode_to_disk_block;
 
 const std::string VM_DISK = "vm_disk.bin";
 
@@ -78,6 +81,55 @@ void read_block_to_inode(inode &curr_inode, int blocknum){
     return;
 }
 
+void read_block_to_col_entries(std::vector<column_entries>& column_entires, int blocknum){
+    int block_byte_offset = blocknum * BLOCK_SIZE;
+
+    std::ifstream disk(VM_DISK, std::ios::binary);
+    disk.seekg(block_byte_offset);
+
+    for(int i = 0; i < NUM_COL_ENTRIES; ++i){
+        column_entries col_entry;
+        char block[BLOCK_SIZE];
+        disk.read(block, BLOCK_SIZE);
+
+        int running_idx = 0;
+        for(int i = 0; i < MAX_TABLENAME_SIZE + 1; ++i){
+            col_entry.tbl_name[i] = block[i];
+        }
+        running_idx = MAX_TABLENAME_SIZE + 1;
+
+        uint32_t inode_blocknum =
+                (static_cast<uint8_t>(block[running_idx + 0]) << 24) |
+                (static_cast<uint8_t>(block[running_idx + 1]) << 16) |
+                (static_cast<uint8_t>(block[running_idx + 2]) << 8)  |
+                static_cast<uint8_t>(block[running_idx + 3]);
+        
+        col_entry.inode_blocknum = inode_blocknum;
+
+        column_entires.push_back(col_entry);
+        running_idx += sizeof(uint32_t);
+        disk.seekg(running_idx);
+    }
+}
+
+void write_col_entries_to_block(const std::vector<column_entries>& column_entires, int blocknum){
+    std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
+    int block_byte_offset = blocknum * BLOCK_SIZE;
+
+    for(int i = 0; i < column_entires.size(); ++i){
+        column_entries col_entry = column_entires[i];
+        disk.seekp(block_byte_offset);
+        disk.write(reinterpret_cast<const char*>(&col_entry.tbl_name), sizeof(col_entry.tbl_name));
+        block_byte_offset += sizeof(col_entry.tbl_name);
+
+        disk.seekp(block_byte_offset);
+        uint32_t blocknum_be = to_big_endian(col_entry.inode_blocknum);
+        disk.write(reinterpret_cast<const char*>(&blocknum_be), sizeof(blocknum_be));
+        block_byte_offset += sizeof(blocknum_be);
+    }
+
+}
+
 void write_inode_to_block(const inode& curr_inode, int blocknum){
     // AI helped me to figure out how to go to a certain byte of a file and overwrite those bytes in place rather than reading everything in
     std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
@@ -118,24 +170,48 @@ std::unordered_set<int> get_free_blocks(){
     std::unordered_set<int> curr_used_blocks;
     std::unordered_set<int> free_blocks;
     std::ifstream file(VM_DISK, std::ios::binary);
+    int starting_blocknum = 0;
 
     for(int i = 0; i < NUM_DISK_BLOCKS; ++i){
         all_free_blocks.insert(i);
     }
 
-    int curr_block_num = 0;
-    while(curr_block_num < NUM_DISK_BLOCKS){
+    inode curr_inode;
+    read_block_to_inode(curr_inode, starting_blocknum);
+
+    std::stack<int> searched_blocknums;
+    searched_blocknums.push(starting_blocknum);
+    curr_used_blocks.insert(starting_blocknum);
+
+    while(searched_blocknums.size() > 0){
+        int curr_blocknum = searched_blocknums.top();
         inode curr_inode;
-        read_block_to_inode(curr_inode, curr_block_num);
-        if(curr_inode.type != '\0'){
-            curr_used_blocks.insert(curr_block_num);
+        searched_blocknums.pop();
+
+        read_block_to_inode(curr_inode, curr_blocknum);
+
+        if(curr_inode.type == 'i'){
             for(int i = 0; i < curr_inode.size; ++i){
-                curr_used_blocks.insert(curr_inode.blocks[i]);
+                std::vector<column_entries> curr_col_entries;
+                read_block_to_col_entries(curr_col_entries, curr_inode.blocks[i]);
+
+                assert(curr_col_entries.size() == NUM_COL_ENTRIES);
+
+                for(int j = 0; j < curr_col_entries.size(); ++j){
+                    column_entries curr_col_entry = curr_col_entries[j];
+                    if(curr_col_entry.inode_blocknum == 0){
+                        break;
+                    }
+                    
+                    searched_blocknums.push(curr_col_entry.inode_blocknum);
+                    curr_used_blocks.insert(curr_col_entry.inode_blocknum);
+                }
             }
         }
 
-        curr_block_num++;
     }
+
+    used_disk_blocks = curr_used_blocks;
 
     for(auto& x : all_free_blocks){
         if(curr_used_blocks.find(x) == curr_used_blocks.end()){
@@ -145,4 +221,20 @@ std::unordered_set<int> get_free_blocks(){
     }
 
     return free_blocks;
+}
+
+void print_out_disk(){
+
+    for(auto &x : used_disk_blocks){
+        inode curr_inode;
+        read_block_to_inode(curr_inode, x);
+
+        std::cout << "table \"" << curr_inode.tbl_name << "\" uses blocks: " << std::endl;
+
+        for(int i = 0; i < curr_inode.size; ++i){
+            std::cout << curr_inode.blocks[i] << std::endl;
+        }
+
+        std::cout << std::endl;
+    }
 }

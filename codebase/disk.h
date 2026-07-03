@@ -3,13 +3,15 @@
 
 #include "globals_disk.h"
 
-void write_disk_block();
+/*
+Needs to allocate the parquet format direntries-esque block, essentially have a table for each column versus storing all the columns in one table with a delimiter
+Allows us to infer the schema instead of like having to store the schema somewhere separately
+*/
+void create_qmt_disk(std::string tbl_name, std::string owner);
 
-void read_disk_block();
+void delete_qmt_disk(std::string tbl_name, std::string owner);
 
-void create_qmt_disk();
-
-void delete_qmt_disk();
+void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_name);
 
 void write_qmt_disk();
 

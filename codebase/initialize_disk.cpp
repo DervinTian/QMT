@@ -1,5 +1,7 @@
 #include <fstream>
 #include <vector>
+#include <filesystem>
+#include <iostream>
 
 #include "globals_disk.h"
 
@@ -13,7 +15,7 @@ owner? Could be useful cuz I was thinking that we could somehow like save an ima
 child_disk_blocks:
 */
 
-// compile cmd: g++ initialze_disk.cpp -o initialze_disk
+// compile cmd: g++ -g -std=c++20 initialize_disk.cpp -o initialize_disk
 
 namespace fs = std::filesystem;
 
@@ -29,4 +31,8 @@ int main() {
     std::vector<char> buffer(size, 0);
 
     file.write(buffer.data(), buffer.size());
+    file.seekp(0);
+
+    char starting_type = 'i';
+    file.write(reinterpret_cast<const char*>(&starting_type), sizeof(starting_type));
 }
