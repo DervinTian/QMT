@@ -26,7 +26,7 @@ Inode layout size:
 4 bytes for size
 10 + 1 bytes for owner name size
 59 + 1 bytes for table name size
-436fd bytes left for availble disk blocks (MAX 112 blocks per inode)
+436 bytes left for availble disk blocks (MAX 112 blocks per inode)
 */
 
 // If a disk block is empty, then the first character of that disk block read in will be '\0', for both inodes and regular table disk blocks

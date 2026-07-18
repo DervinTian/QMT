@@ -194,7 +194,7 @@ std::unordered_set<int> get_free_blocks(){
             for(int i = 0; i < curr_inode.size; ++i){
                 std::vector<column_entries> curr_col_entries;
                 read_block_to_col_entries(curr_col_entries, curr_inode.blocks[i]);
-
+                curr_used_blocks.insert(curr_inode.blocks[i]);
                 assert(curr_col_entries.size() == NUM_COL_ENTRIES);
 
                 for(int j = 0; j < curr_col_entries.size(); ++j){
@@ -225,16 +225,30 @@ std::unordered_set<int> get_free_blocks(){
 
 void print_out_disk(){
 
-    for(auto &x : used_disk_blocks){
-        inode curr_inode;
-        read_block_to_inode(curr_inode, x);
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
 
-        std::cout << "table \"" << curr_inode.tbl_name << "\" uses blocks: " << std::endl;
+    std::stack<int> search_blocks;
 
-        for(int i = 0; i < curr_inode.size; ++i){
-            std::cout << curr_inode.blocks[i] << std::endl;
+    search_blocks.push(0);
+
+    while(search_blocks.size() > 0){
+        int top_block = search_blocks.top();
+        search_blocks.pop();
+
+        inode top_inode;
+        read_block_to_inode(top_inode, top_block);
+
+        for(int i = 0; i < top_inode.size; ++i){
+            std::vector<column_entries> inode_col_entries;
+            read_block_to_col_entries(inode_col_entries, top_inode.blocks[top_inode.size - 1]);
+
+            std::cout << "Table " << top_inode.tbl_name << " has the columns:\n";
+            for(int j = 0; j < inode_col_entries.size(); ++j){
+                column_entries &curr_entry = inode_col_entries[j];
+                std::cout << curr_entry.tbl_name << std::endl;
+                search_blocks.push(curr_entry.inode_blocknum);
+            }
         }
-
-        std::cout << std::endl;
     }
 }
