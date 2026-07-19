@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cassert>
+#include <fstream>
 
 #include "disk.h"
 #include "globals_disk.h"
@@ -238,7 +239,7 @@ void delete_qmt_disk(std::string tbl_name, std::string owner){
 
 }
 
-void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_name){
+void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_name, std::string col_type){
     // First step is to find the table itself, by searching through the root directory
     inode root_inode;
     read_block_to_inode(root_inode, 0);
@@ -263,6 +264,10 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
     for(int i = 0; i < col_name.size(); ++i){
         column_inode.tbl_name[i] = col_name[i];
     }
+    column_inode.tbl_name[col_name.size()] = '\0';
+    for(int i = col_name.size() + 1; i < col_name.size() + 1 + col_type.size(); ++i){
+        column_inode.tbl_name[i] = col_type[i - col_name.size() - 1];
+    }
     column_inode.size = 0;
     column_inode.type = 'i';
     for(int i = 0; i < owner.size(); ++i){
@@ -282,6 +287,7 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
                 for(int j = 0; j < col_name.size(); ++j){
                     curr_entry.tbl_name[j] = col_name[j];
                 }
+                break;
             }
         }
     }
@@ -306,6 +312,15 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
         }
     }
 
+    // Now need to allocate the first new disk block for the column to use
+    col_entry_block = *free_disk_blocks.begin();
+    free_disk_blocks.erase(col_entry_block);
+
+    inode temp_inode;
+    temp_inode.type = '\0';
+    temp_inode.size = 0;
+    write_inode_to_block(temp_inode, col_entry_block);
+
     std::cout << col_entry_block << std::endl;
     write_inode_to_block(column_inode, next_free_block);
     write_col_entries_to_block(tbl_col_entries, col_entry_block);
@@ -313,5 +328,146 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
         tbl_inode.size++;
         tbl_inode.blocks[tbl_inode.size - 1] = col_entry_block;
         write_inode_to_block(tbl_inode, tbl_inode_block);
+    }
+}
+
+/*
+// object to be used in the comparisons
+struct cmp_object{
+    std::string param_string;
+    int param_int;
+    double param_double;
+    bool param_bool;
+    char param_char;
+
+    cmp_object_type type;
+};
+*/
+void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj){
+    /*
+    First find go to the disk block specified
+    Then just go in and then since all the values will be delimited by '\0', find the last occurrence of that 
+    */
+    int byte_offset = BLOCK_SIZE * blocknum;
+
+    std::ifstream disk(VM_DISK, std::ios::binary);
+    disk.seekg(byte_offset);
+
+    char block[BLOCK_SIZE];
+    disk.read(block, BLOCK_SIZE);
+
+    disk.close();
+
+    uint16_t size =
+        (static_cast<uint8_t>(block[0]) << 8)  |
+        static_cast<uint8_t>(block[1]);
+    
+    std::string write_val;
+    if(input_obj.type == STRING){
+        write_val = input_obj.param_string;
+    }
+    else if(input_obj.type == CHAR){
+        write_val += input_obj.param_char;
+    }
+    else if(input_obj.type == INT){
+        write_val = std::to_string(input_obj.param_int);
+    }
+    else if(input_obj.type == DOUBLE){
+        write_val = std::to_string(input_obj.param_double);
+    }
+    else if(input_obj.type == BOOL){
+        if(input_obj.param_bool){
+            write_val = "true";
+        }
+        else{
+            write_val = "false";
+        }
+    }
+    else{
+        exit_with_error(UNKNOWN_TYPE, "");
+    }
+    
+    if(size + write_val.size() > BLOCK_SIZE){
+        // Need to get a new block
+        int next_free_block = *free_disk_blocks.begin();
+        free_disk_blocks.erase(next_free_block);
+
+        int new_byte_offset = BLOCK_SIZE * next_free_block;
+
+        std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
+        disk.seekp(new_byte_offset);
+        uint16_t used_bytes = 2 + write_val.size();
+        disk.write(reinterpret_cast<const char*>(&used_bytes), sizeof(used_bytes));
+
+        disk.seekp(2 + new_byte_offset);
+        disk.write(reinterpret_cast<const char*>(&write_val), sizeof(write_val));
+    }
+    else{
+        std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
+        disk.seekp(size);
+        disk.write(reinterpret_cast<const char*>(&write_val), sizeof(write_val));
+    }
+}
+
+void read_qmt_disk(int blocknum, std::string val_type, std::string owner, std::vector<cmp_object> &return_object){
+    /*
+    data blocks will need to contain the number of bytes that are actually used
+    The first two bytes will specify the number of bytes that are like not computer garble
+    First find go to the disk block specified
+    Need to handle error checking at some point
+    Then just read in the value for that block
+    Going to read everything in as strings I guess for now, and then we can let the code above decide how to parse it afterwards
+    */
+
+    int byte_offset = BLOCK_SIZE * blocknum;
+
+    std::ifstream disk(VM_DISK, std::ios::binary);
+    disk.seekg(byte_offset);
+
+    char block[BLOCK_SIZE];
+    disk.read(block, BLOCK_SIZE);
+
+    uint16_t bytes_used =
+        (static_cast<uint8_t>(block[0]) << 8)  |
+        static_cast<uint8_t>(block[1]);
+
+    std::string attr;
+    cmp_object attr_obj;
+    for(int i = 2; i < bytes_used; ++i){
+        if(block[i] != '\0'){
+            attr += block[i];
+        }
+        else{
+            if(val_type == "string"){
+                attr_obj.param_string = attr;
+                attr_obj.type = STRING;
+            }
+            else if(val_type == "char"){
+                attr_obj.param_char = attr[0];
+                attr_obj.type = CHAR;
+            }
+            else if(val_type == "int"){
+                attr_obj.param_int = std::stoi(attr);
+                attr_obj.type = INT;
+            }
+            else if(val_type == "double"){
+                attr_obj.param_int = std::stod(attr);
+                attr_obj.type = DOUBLE;
+            }
+            else if(val_type == "bool"){
+                if(attr == "true"){
+                    attr_obj.param_bool = true;
+                }
+                else{
+                    attr_obj.param_bool = false;
+                }
+                attr_obj.type = BOOL;
+            }
+            else{
+                exit_with_error(UNKNOWN_TYPE, "");
+            }
+            return_object.push_back(attr_obj);
+            attr.clear();
+        }
     }
 }

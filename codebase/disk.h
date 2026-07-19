@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "globals_disk.h"
+#include "globals.h"
 
 /*
 Needs to allocate the parquet format direntries-esque block, essentially have a table for each column versus storing all the columns in one table with a delimiter
@@ -13,6 +14,8 @@ void delete_qmt_disk(std::string tbl_name, std::string owner);
 
 void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_name);
 
-void write_qmt_disk();
+void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj);
 
-void read_qmt_disk();
+void read_qmt_disk(int blocknum, std::string owner, std::vector<cmp_object> &return_object);
+
+std::vector<int> get_blocknums_for_col(std::string tbl_name, std::string col_name, std::string owner);
