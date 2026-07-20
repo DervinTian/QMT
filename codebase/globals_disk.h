@@ -60,4 +60,5 @@ void write_inode_to_block(const inode& curr_inode, int blocknum);
 void read_block_to_col_entries(std::vector<column_entries>& column_entries, int blocknum);
 void write_col_entries_to_block(const std::vector<column_entries>& column_entires, int blocknum);
 uint32_t to_big_endian(uint32_t x);
+uint16_t to_big_endian_16(uint16_t x);
 std::unordered_set<int> get_free_blocks();

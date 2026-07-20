@@ -12,10 +12,12 @@ void create_qmt_disk(std::string tbl_name, std::string owner);
 
 void delete_qmt_disk(std::string tbl_name, std::string owner);
 
-void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_name);
+void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_name, std::string col_type);
 
 void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj);
 
-void read_qmt_disk(int blocknum, std::string owner, std::vector<cmp_object> &return_object);
+void read_qmt_disk(int blocknum, std::string val_type, std::string owner, std::vector<cmp_object> &return_object);
 
 std::vector<int> get_blocknums_for_col(std::string tbl_name, std::string col_name, std::string owner);
+
+std::vector<int> get_blocknums_for_all_cols_in_tbl(std::string tbl_name, std::string owner);

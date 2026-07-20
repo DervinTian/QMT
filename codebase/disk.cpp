@@ -275,24 +275,32 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
     }
 
     if(tbl_inode.size != 0){
-        col_entry_block = tbl_inode.blocks[tbl_inode.size];
-        read_block_to_col_entries(tbl_col_entries, tbl_inode.blocks[tbl_inode.size]);
+        std::cout << "Here\n" << std::endl;
+        col_entry_block = tbl_inode.blocks[tbl_inode.size - 1];
+        std::cout << "Writing to " << col_entry_block << std::endl;
+        read_block_to_col_entries(tbl_col_entries, col_entry_block);
 
         for(int i = 0; i < tbl_col_entries.size(); ++i){
             column_entries &curr_entry = tbl_col_entries[i];
             if(curr_entry.inode_blocknum == 0){
+                std::cout << "Here2\n";
                 is_full = false;
 
                 curr_entry.inode_blocknum = next_free_block;
                 for(int j = 0; j < col_name.size(); ++j){
                     curr_entry.tbl_name[j] = col_name[j];
                 }
+                curr_entry.tbl_name[col_name.size()] = '\0';
                 break;
             }
         }
     }
+    else{
+        is_full = false;
+    }
 
     if(is_full || tbl_inode.size == 0){
+        std::cout << "Am Here becuase is_full is " << is_full << " or tbl_inode.size is " << tbl_inode.size << std::endl;
         modify_tbl_inode = true;
         col_entry_block = *free_disk_blocks.begin();
         free_disk_blocks.erase(col_entry_block);
@@ -304,8 +312,10 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
                 for(int j = 0; j < col_name.size(); ++j){
                     curr_entry.tbl_name[j] = col_name[j];
                 }
+                curr_entry.tbl_name[col_name.size()] = '\0';
             }
             else{
+                curr_entry.tbl_name[0] = '\0';
                 curr_entry.inode_blocknum = 0;
             }
             tbl_col_entries.push_back(curr_entry);
@@ -313,15 +323,23 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
     }
 
     // Now need to allocate the first new disk block for the column to use
-    col_entry_block = *free_disk_blocks.begin();
-    free_disk_blocks.erase(col_entry_block);
+    int new_entry_block = *free_disk_blocks.begin();
+    free_disk_blocks.erase(new_entry_block);
 
-    inode temp_inode;
-    temp_inode.type = '\0';
-    temp_inode.size = 0;
-    write_inode_to_block(temp_inode, col_entry_block);
+    std::cout << "The new data block that we will write to is " << new_entry_block << std::endl;
 
-    std::cout << col_entry_block << std::endl;
+    std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
+    disk.seekp(BLOCK_SIZE * new_entry_block);
+
+    uint16_t initial_data_block_size = 2;
+    uint16_t initial_data_block_size_be = to_big_endian_16(initial_data_block_size);
+    std::cout << initial_data_block_size_be << std::endl;
+    disk.write(reinterpret_cast<const char*>(&initial_data_block_size_be), sizeof(initial_data_block_size_be));
+    disk.close();
+
+    column_inode.size++;
+    column_inode.blocks[0] = new_entry_block;
+
     write_inode_to_block(column_inode, next_free_block);
     write_col_entries_to_block(tbl_col_entries, col_entry_block);
     if(modify_tbl_inode){
@@ -362,6 +380,8 @@ void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj
         (static_cast<uint8_t>(block[0]) << 8)  |
         static_cast<uint8_t>(block[1]);
     
+    std::cout << "The size for writing to " << input_obj.param_string << " is " << size << std::endl;
+    
     std::string write_val;
     if(input_obj.type == STRING){
         write_val = input_obj.param_string;
@@ -396,16 +416,22 @@ void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj
 
         std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
         disk.seekp(new_byte_offset);
-        uint16_t used_bytes = 2 + write_val.size();
-        disk.write(reinterpret_cast<const char*>(&used_bytes), sizeof(used_bytes));
+        uint16_t used_bytes = 2 + write_val.size() + 1;
+        uint16_t used_bytes_be = to_big_endian_16(used_bytes);
+        disk.write(reinterpret_cast<const char*>(&used_bytes_be), sizeof(used_bytes_be));
 
         disk.seekp(2 + new_byte_offset);
         disk.write(reinterpret_cast<const char*>(&write_val), sizeof(write_val));
     }
     else{
         std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
-        disk.seekp(size);
+        disk.seekp(byte_offset + size);
         disk.write(reinterpret_cast<const char*>(&write_val), sizeof(write_val));
+        size += write_val.size() + 1;
+        disk.seekp(byte_offset + size);
+        disk.seekp(byte_offset);
+        uint16_t size_be = to_big_endian_16(size);
+        disk.write(reinterpret_cast<const char*>(&size_be), sizeof(size_be));
     }
 }
 
@@ -430,6 +456,8 @@ void read_qmt_disk(int blocknum, std::string val_type, std::string owner, std::v
     uint16_t bytes_used =
         (static_cast<uint8_t>(block[0]) << 8)  |
         static_cast<uint8_t>(block[1]);
+    
+    std::cout << "The number of bytes used in " << blocknum << " is " << bytes_used << std::endl;
 
     std::string attr;
     cmp_object attr_obj;
@@ -470,4 +498,79 @@ void read_qmt_disk(int blocknum, std::string val_type, std::string owner, std::v
             attr.clear();
         }
     }
+
+}
+
+std::vector<int> get_blocknums_for_col(std::string tbl_name, std::string col_name, std::string owner){
+    std::vector<int> result_blocks;
+
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
+
+    int tbl_inode_blocknum = find_table_inode_block(root_inode, tbl_name);
+
+    inode tbl_inode;
+    read_block_to_inode(tbl_inode, tbl_inode_blocknum);
+
+    int column_inode_blocknum = 0;
+
+    bool done_flag = false;
+    for(int i = 0; i < tbl_inode.size; ++i){
+        int col_entries_block = tbl_inode.blocks[i];
+        std::vector<column_entries> block_col_entries;
+
+        read_block_to_col_entries(block_col_entries, col_entries_block);
+
+        for(int j = 0; j < block_col_entries.size(); ++j){
+            column_entries &curr_col_entry = block_col_entries[j];
+            if(curr_col_entry.tbl_name == col_name){
+                column_inode_blocknum = curr_col_entry.inode_blocknum;
+                done_flag = true;
+                break;
+            }
+        }
+
+        if(done_flag){
+            break;
+        }
+    }
+
+    inode column_inode;
+    read_block_to_inode(column_inode, column_inode_blocknum);
+
+    for(int k = 0; k < column_inode.size; ++k){
+        result_blocks.push_back(column_inode.blocks[k]);
+    }
+
+    return result_blocks;
+}
+
+std::vector<int> get_blocknums_for_all_cols_in_tbl(std::string tbl_name, std::string owner){
+    std::vector<int> result_blocks;
+
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
+
+    int tbl_inode_blocknum = find_table_inode_block(root_inode, tbl_name);
+
+    inode tbl_inode;
+    read_block_to_inode(tbl_inode, tbl_inode_blocknum);
+
+    for(int i = 0; i < tbl_inode.size; ++i){
+        int col_entries_block = tbl_inode.blocks[i];
+        std::vector<column_entries> block_col_entries;
+
+        read_block_to_col_entries(block_col_entries, col_entries_block);
+
+        for(int j = 0; j < block_col_entries.size(); ++j){
+            column_entries &curr_col_entry = block_col_entries[j];
+            if(curr_col_entry.inode_blocknum == 0){
+                break;
+            }
+            result_blocks.push_back(curr_col_entry.inode_blocknum);
+        }
+
+    }
+
+    return result_blocks;
 }

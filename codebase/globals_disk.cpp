@@ -14,6 +14,10 @@ uint32_t to_big_endian(uint32_t x) {
     return htonl(x);
 }
 
+uint16_t to_big_endian_16(uint16_t x){
+    return htons(x);
+}
+
 void read_block_to_inode(inode &curr_inode, int blocknum){
     // go to the start of the block (AI helped with the syntax here as well)
     int block_byte_offset = blocknum * BLOCK_SIZE;

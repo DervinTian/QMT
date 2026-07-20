@@ -9,3 +9,4 @@ test.cpp
 test
 codebase/vm_disk.bin
 codebase/test*
+codebase/output*
