@@ -66,7 +66,16 @@ void read_block_to_inode(inode &curr_inode, int blocknum){
     }
     running_idx = MAX_TABLENAME_SIZE + 1 + running_idx;
     for(int i = 0; i < attr.size(); ++i){
-        curr_inode.tbl_name[i] = attr[i];
+        curr_inode.tbl_col_name[i] = attr[i];
+    }
+    attr.clear();
+
+    for(int i = running_idx; i < MAX_COLUMN_NAME_SIZE + 1 + running_idx; ++i){
+        attr += block[i];
+    }
+    running_idx = MAX_COLUMN_NAME_SIZE + 1 + running_idx;
+    for(int i = 0; i < attr.size(); ++i){
+        curr_inode.col_type[i] = attr[i];
     }
     attr.clear();
 
@@ -155,8 +164,12 @@ void write_inode_to_block(const inode& curr_inode, int blocknum){
     block_byte_offset += sizeof(curr_inode.owner);
 
     disk.seekp(block_byte_offset);
-    disk.write(reinterpret_cast<const char*>(&curr_inode.tbl_name), sizeof(curr_inode.tbl_name));
-    block_byte_offset += sizeof(curr_inode.tbl_name);
+    disk.write(reinterpret_cast<const char*>(&curr_inode.tbl_col_name), sizeof(curr_inode.tbl_col_name));
+    block_byte_offset += sizeof(curr_inode.tbl_col_name);
+
+    disk.seekp(block_byte_offset);
+    disk.write(reinterpret_cast<const char*>(&curr_inode.col_type), sizeof(curr_inode.col_type));
+    block_byte_offset += sizeof(curr_inode.col_type);
 
     for(int i = 0; i < curr_inode.size; ++i){
         disk.seekp(block_byte_offset);
@@ -247,7 +260,7 @@ void print_out_disk(){
             std::vector<column_entries> inode_col_entries;
             read_block_to_col_entries(inode_col_entries, top_inode.blocks[top_inode.size - 1]);
 
-            std::cout << "Table " << top_inode.tbl_name << " has the columns:\n";
+            std::cout << "Table " << top_inode.tbl_col_name << " has the columns:\n";
             for(int j = 0; j < inode_col_entries.size(); ++j){
                 column_entries &curr_entry = inode_col_entries[j];
                 std::cout << curr_entry.tbl_name << std::endl;

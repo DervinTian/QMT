@@ -18,6 +18,8 @@ void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj
 
 void read_qmt_disk(int blocknum, std::string val_type, std::string owner, std::vector<cmp_object> &return_object);
 
+uint32_t find_table_inode_block(inode &root_inode, std::string tbl_name);
+
 std::vector<int> get_blocknums_for_col(std::string tbl_name, std::string col_name, std::string owner);
 
 std::vector<int> get_blocknums_for_all_cols_in_tbl(std::string tbl_name, std::string owner);

@@ -14,9 +14,11 @@ void create_qmt_disk(std::string tbl_name, std::string owner){
     new_inode.owner[owner.size()] = '\0';
 
     for(size_t i = 0; i < tbl_name.size(); ++i){
-        new_inode.tbl_name[i] = tbl_name[i];
+        new_inode.tbl_col_name[i] = tbl_name[i];
     }
-    new_inode.tbl_name[tbl_name.size()] = '\0';
+    new_inode.tbl_col_name[tbl_name.size()] = '\0';
+
+    new_inode.col_type[0] = '\0';
 
     new_inode.size = 0;
     new_inode.type = 'i';
@@ -262,11 +264,11 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
 
     inode column_inode;
     for(int i = 0; i < col_name.size(); ++i){
-        column_inode.tbl_name[i] = col_name[i];
+        column_inode.tbl_col_name[i] = col_name[i];
     }
-    column_inode.tbl_name[col_name.size()] = '\0';
-    for(int i = col_name.size() + 1; i < col_name.size() + 1 + col_type.size(); ++i){
-        column_inode.tbl_name[i] = col_type[i - col_name.size() - 1];
+    column_inode.tbl_col_name[col_name.size()] = '\0';
+    for(int i = 0; i < col_type.size(); ++i){
+        column_inode.col_type[i] = col_type[i];
     }
     column_inode.size = 0;
     column_inode.type = 'i';

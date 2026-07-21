@@ -13,7 +13,8 @@
 const uint64_t DISK_SIZE = 1048576; // Just set it to 1MB for now
 const uint32_t BLOCK_SIZE = 512;
 const uint32_t MAX_OWNER_SIZE = 10;
-const uint32_t MAX_TABLENAME_SIZE = 59;
+const uint32_t MAX_TABLENAME_SIZE = 52;
+const uint32_t MAX_COLUMN_NAME_SIZE = 6;
 const uint32_t INODE_MAX_BLOCKS = (DISK_SIZE - 1 - 4 - (MAX_OWNER_SIZE + 1) - (MAX_TABLENAME_SIZE + 1)) / BLOCK_SIZE;
 const uint32_t NUM_DISK_BLOCKS = DISK_SIZE / BLOCK_SIZE;
 const uint32_t NUM_COL_ENTRIES = BLOCK_SIZE / 64;
@@ -26,6 +27,7 @@ Inode layout size:
 4 bytes for size
 10 + 1 bytes for owner name size
 59 + 1 bytes for table name size
+6 + 1 bytes for the column_name_size
 436 bytes left for availble disk blocks (MAX 112 blocks per inode)
 */
 
@@ -35,7 +37,8 @@ struct inode {
     char type;
     uint32_t size;
     char owner[MAX_OWNER_SIZE + 1];
-    char tbl_name[MAX_TABLENAME_SIZE + 1]; // I guess tbl_name represents both the table name or the column name
+    char tbl_col_name[MAX_TABLENAME_SIZE + 1]; // I guess tbl_name represents both the table name or the column name
+    char col_type[MAX_COLUMN_NAME_SIZE + 1];
     uint32_t blocks[INODE_MAX_BLOCKS];
 };
 
