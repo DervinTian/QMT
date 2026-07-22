@@ -44,7 +44,8 @@ struct inode {
 
 // Have a struct of column_entries, that will all fit within a block, make it around 64 bytes, so 8 columns per table as a max for now
 struct column_entries{
-    char tbl_name[MAX_TABLENAME_SIZE + 1]; // I guess tbl_name represents both the table name or the column name
+    char tbl_col_name[MAX_TABLENAME_SIZE + 1]; // I guess tbl_name represents both the table name or the column name
+    char col_type[MAX_COLUMN_NAME_SIZE + 1];
     uint32_t inode_blocknum;
 };
 

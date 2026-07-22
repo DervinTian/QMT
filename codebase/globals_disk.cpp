@@ -100,28 +100,35 @@ void read_block_to_col_entries(std::vector<column_entries>& column_entires, int 
     std::ifstream disk(VM_DISK, std::ios::binary);
     disk.seekg(block_byte_offset);
 
-    for(int i = 0; i < NUM_COL_ENTRIES; ++i){
-        column_entries col_entry;
-        char block[BLOCK_SIZE];
-        disk.read(block, BLOCK_SIZE);
+    column_entries col_entry;
+    char block[BLOCK_SIZE];
+    disk.read(block, BLOCK_SIZE);
 
-        int running_idx = 0;
-        for(int i = 0; i < MAX_TABLENAME_SIZE + 1; ++i){
-            col_entry.tbl_name[i] = block[i];
+    int running_idx = 0;
+
+    for(int i = 0; i < NUM_COL_ENTRIES; ++i){
+
+        for(int j = 0; j < MAX_TABLENAME_SIZE + 1; ++j){
+            col_entry.tbl_col_name[j] = block[running_idx + j];
         }
-        running_idx = MAX_TABLENAME_SIZE + 1;
+
+        running_idx += MAX_TABLENAME_SIZE + 1;
+        for(int k = 0; k < MAX_COLUMN_NAME_SIZE + 1; ++k){
+            col_entry.col_type[k] = block[running_idx + k];
+        }
+        running_idx += MAX_COLUMN_NAME_SIZE + 1;
 
         uint32_t inode_blocknum =
                 (static_cast<uint8_t>(block[running_idx + 0]) << 24) |
                 (static_cast<uint8_t>(block[running_idx + 1]) << 16) |
                 (static_cast<uint8_t>(block[running_idx + 2]) << 8)  |
                 static_cast<uint8_t>(block[running_idx + 3]);
-        
+
         col_entry.inode_blocknum = inode_blocknum;
 
         column_entires.push_back(col_entry);
         running_idx += sizeof(uint32_t);
-        disk.seekg(running_idx);
+        disk.seekg(block_byte_offset + running_idx);
     }
 }
 
@@ -132,8 +139,12 @@ void write_col_entries_to_block(const std::vector<column_entries>& column_entire
     for(int i = 0; i < column_entires.size(); ++i){
         column_entries col_entry = column_entires[i];
         disk.seekp(block_byte_offset);
-        disk.write(reinterpret_cast<const char*>(&col_entry.tbl_name), sizeof(col_entry.tbl_name));
-        block_byte_offset += sizeof(col_entry.tbl_name);
+        disk.write(reinterpret_cast<const char*>(&col_entry.tbl_col_name), sizeof(col_entry.tbl_col_name));
+        block_byte_offset += sizeof(col_entry.tbl_col_name);
+
+        disk.seekp(block_byte_offset);
+        disk.write(reinterpret_cast<const char*>(&col_entry.col_type), sizeof(col_entry.col_type));
+        block_byte_offset += sizeof(col_entry.col_type);
 
         disk.seekp(block_byte_offset);
         uint32_t blocknum_be = to_big_endian(col_entry.inode_blocknum);
@@ -245,27 +256,37 @@ void print_out_disk(){
     inode root_inode;
     read_block_to_inode(root_inode, 0);
 
-    std::stack<int> search_blocks;
+    for(int i = 0; i < root_inode.size; ++i){
+        std::vector<column_entries> block_col_entries;
+        int next_inode_blocknum = root_inode.blocks[i];
+        read_block_to_col_entries(block_col_entries, next_inode_blocknum);
 
-    search_blocks.push(0);
-
-    while(search_blocks.size() > 0){
-        int top_block = search_blocks.top();
-        search_blocks.pop();
-
-        inode top_inode;
-        read_block_to_inode(top_inode, top_block);
-
-        for(int i = 0; i < top_inode.size; ++i){
-            std::vector<column_entries> inode_col_entries;
-            read_block_to_col_entries(inode_col_entries, top_inode.blocks[top_inode.size - 1]);
-
-            std::cout << "Table " << top_inode.tbl_col_name << " has the columns:\n";
-            for(int j = 0; j < inode_col_entries.size(); ++j){
-                column_entries &curr_entry = inode_col_entries[j];
-                std::cout << curr_entry.tbl_name << std::endl;
-                search_blocks.push(curr_entry.inode_blocknum);
+        for(int j = 0; j < block_col_entries.size(); ++j){
+            if(block_col_entries[j].inode_blocknum == 0){
+                break;
             }
+            column_entries &curr_col_entry = block_col_entries[j];
+            inode tbl_inode;
+            read_block_to_inode(tbl_inode, curr_col_entry.inode_blocknum);
+
+            std::cout << "The table " << tbl_inode.tbl_col_name << " contains the following columns: " << std::endl;
+
+            for(int k = 0; k < tbl_inode.size; ++k){
+                std::vector<column_entries> tbl_column_entries;
+                int tbl_col_blocknum = tbl_inode.blocks[k];
+                read_block_to_col_entries(tbl_column_entries, tbl_col_blocknum);
+
+                for(int l = 0; l < tbl_column_entries.size(); ++l){
+                    if(tbl_column_entries[l].inode_blocknum == 0){
+                        break;
+                    }
+                    std::cout << tbl_column_entries[l].tbl_col_name << " (" << tbl_column_entries[l].col_type << ") " << std::endl;
+                }
+                
+            }
+
+            std::cout << std::endl;
         }
+        
     }
 }

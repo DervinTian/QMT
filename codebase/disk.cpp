@@ -55,7 +55,7 @@ void create_qmt_disk(std::string tbl_name, std::string owner){
         if(col_entry.inode_blocknum == 0){
             block_is_full = false;
             for(int j = 0; j < tbl_name.size(); ++j){
-                col_entry.tbl_name[j] = tbl_name[j];
+                col_entry.tbl_col_name[j] = tbl_name[j];
             }
             col_entry.inode_blocknum = next_free_block;
             break;
@@ -70,7 +70,7 @@ void create_qmt_disk(std::string tbl_name, std::string owner){
             column_entries col_entry;
             if(i == 0){
                 for(int j = 0; j < tbl_name.size(); ++j){
-                    col_entry.tbl_name[j] = tbl_name[j];
+                    col_entry.tbl_col_name[j] = tbl_name[j];
                 }
                 col_entry.inode_blocknum = next_free_block;
             }
@@ -103,7 +103,7 @@ uint32_t find_table_inode_block(inode &root_inode, std::string tbl_name){
 
         for(int i = 0; i < curr_col_entries.size(); ++i){
             column_entries &curr_col_entry = curr_col_entries[i];
-            if(curr_col_entry.tbl_name == tbl_name){
+            if(curr_col_entry.tbl_col_name == tbl_name){
                 tbl_inode_block = curr_col_entry.inode_blocknum;
                 found = true;
                 break;
@@ -163,7 +163,7 @@ void delete_qmt_disk(std::string tbl_name, std::string owner){
         while(root_inode_col_entries_copy.size() < root_inode_col_entries.size()){
             column_entries blank;
             blank.inode_blocknum = 0;
-            blank.tbl_name[0] = '\0';
+            blank.tbl_col_name[0] = '\0';
             root_inode_col_entries_copy.push_back(blank);
         }
 
@@ -243,6 +243,8 @@ void delete_qmt_disk(std::string tbl_name, std::string owner){
 
 void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_name, std::string col_type){
     // First step is to find the table itself, by searching through the root directory
+
+    std::cout << col_name << col_type << tbl_name << std::endl;
     inode root_inode;
     read_block_to_inode(root_inode, 0);
 
@@ -257,7 +259,6 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
     inode tbl_inode;
     read_block_to_inode(tbl_inode, tbl_inode_block);
 
-    bool is_full = true;
     bool modify_tbl_inode = false;
     std::vector<column_entries> tbl_col_entries;
     int col_entry_block = 0;
@@ -270,13 +271,32 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
     for(int i = 0; i < col_type.size(); ++i){
         column_inode.col_type[i] = col_type[i];
     }
+    column_inode.col_type[col_type.size()] = '\0';
     column_inode.size = 0;
     column_inode.type = 'i';
     for(int i = 0; i < owner.size(); ++i){
         column_inode.owner[i] = owner[i];
     }
+    column_inode.owner[owner.size()] = '\0';
 
+    int num_col_entries = 0;
     if(tbl_inode.size != 0){
+        std::cout << "Checking to see if the col_entries block is full or not" << std::endl;
+        col_entry_block = tbl_inode.blocks[tbl_inode.size - 1];
+        std::vector<column_entries> tmp_buffer_block;
+        read_block_to_col_entries(tmp_buffer_block, col_entry_block);
+
+        for(int i = 0; i < tmp_buffer_block.size(); ++i){
+            column_entries &curr_entry = tmp_buffer_block[i];
+            if(curr_entry.inode_blocknum == 0){
+                std::cout << "The iteration " << i << std::endl;
+                break;
+            }
+            num_col_entries++;
+        }
+    }
+
+    if(num_col_entries > 0 && num_col_entries < NUM_COL_ENTRIES){
         std::cout << "Here\n" << std::endl;
         col_entry_block = tbl_inode.blocks[tbl_inode.size - 1];
         std::cout << "Writing to " << col_entry_block << std::endl;
@@ -285,24 +305,24 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
         for(int i = 0; i < tbl_col_entries.size(); ++i){
             column_entries &curr_entry = tbl_col_entries[i];
             if(curr_entry.inode_blocknum == 0){
-                std::cout << "Here2\n";
-                is_full = false;
+                std::cout << "The iteration " << i << std::endl;
 
                 curr_entry.inode_blocknum = next_free_block;
                 for(int j = 0; j < col_name.size(); ++j){
-                    curr_entry.tbl_name[j] = col_name[j];
+                    curr_entry.tbl_col_name[j] = col_name[j];
                 }
-                curr_entry.tbl_name[col_name.size()] = '\0';
+                curr_entry.tbl_col_name[col_name.size()] = '\0';
+                for(int k = 0; k < col_type.size(); ++k){
+                    curr_entry.col_type[k] = col_type[k];
+                }
+                curr_entry.col_type[col_type.size()] = '\0';
                 break;
             }
         }
     }
-    else{
-        is_full = false;
-    }
 
-    if(is_full || tbl_inode.size == 0){
-        std::cout << "Am Here becuase is_full is " << is_full << " or tbl_inode.size is " << tbl_inode.size << std::endl;
+    if(num_col_entries == 0 || num_col_entries == NUM_COL_ENTRIES){
+        std::cout << "Me full\n";
         modify_tbl_inode = true;
         col_entry_block = *free_disk_blocks.begin();
         free_disk_blocks.erase(col_entry_block);
@@ -312,15 +332,21 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
             if(i == 0){
                 curr_entry.inode_blocknum = next_free_block;
                 for(int j = 0; j < col_name.size(); ++j){
-                    curr_entry.tbl_name[j] = col_name[j];
+                    curr_entry.tbl_col_name[j] = col_name[j];
                 }
-                curr_entry.tbl_name[col_name.size()] = '\0';
+                curr_entry.tbl_col_name[col_name.size()] = '\0';
+                for(int k = 0; k < col_type.size(); ++k){
+                    curr_entry.col_type[k] = col_type[k];
+                }
+                curr_entry.col_type[col_type.size()] = '\0';
             }
             else{
-                curr_entry.tbl_name[0] = '\0';
+                curr_entry.tbl_col_name[0] = '\0';
+                curr_entry.col_type[0] = '\0';
                 curr_entry.inode_blocknum = 0;
             }
             tbl_col_entries.push_back(curr_entry);
+            std::cout << "Size is: " << tbl_col_entries.size() << std::endl;
         }
     }
 
@@ -525,7 +551,7 @@ std::vector<int> get_blocknums_for_col(std::string tbl_name, std::string col_nam
 
         for(int j = 0; j < block_col_entries.size(); ++j){
             column_entries &curr_col_entry = block_col_entries[j];
-            if(curr_col_entry.tbl_name == col_name){
+            if(curr_col_entry.tbl_col_name == col_name){
                 column_inode_blocknum = curr_col_entry.inode_blocknum;
                 done_flag = true;
                 break;
