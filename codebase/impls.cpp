@@ -127,32 +127,38 @@ void select_qmt(const cmd_args &arguments){
     std::string smaller_table_size_name;
     int smallest_table_so_far = INT_MAX;
     for(auto &pair : arguments.select.table_columns){
-        std::string path = db_path + "/" + pair.first;
+        std::string tbl_name = pair.first;
         std::string binary_row_count;
-        if(!fs::exists(path)){
+        if(table_exists(tbl_name)){
             exit_with_error(NULL_TABLE, pair.first);
         }
+        
+        int num_blocks_used = 0;
+        std::vector<int> table_column_inodes = get_blocknums_for_all_cols_in_tbl(tbl_name, SESSION_USER);
+        num_blocks_used += table_column_inodes.size();
 
-        std::ifstream input_file(path);
-        std::getline(input_file, binary_row_count);
+        for(int q = 0; q < table_column_inodes.size(); ++q){
+            int curr_col_inode_blocknum = table_column_inodes[q];
 
-        int decimal_row_count = std::stoi(binary_row_count, nullptr, 2);
+            inode col_inode;
+            read_block_to_inode(col_inode, curr_col_inode_blocknum);
 
-        if(decimal_row_count < smallest_table_so_far){
-            smallest_table_so_far = decimal_row_count;
-            smaller_table_size_name = pair.first;
+            std::vector<int> column_blocks = get_blocknums_for_col(tbl_name, col_inode.tbl_col_name, SESSION_USER);
+            num_blocks_used += column_blocks.size();
+        }
+
+        if(num_blocks_used < smallest_table_so_far){
+            smallest_table_so_far = num_blocks_used;
+            smaller_table_size_name = tbl_name;
         }
 
     }
 
-    std::string table_path = db_path + "/" + smaller_table_size_name;
-    std::string schema_path = db_path + "/schemas/" + smaller_table_size_name;
-
-    if(!fs::exists(table_path)){
+    if(table_exists(smaller_table_size_name)){
         exit_with_error(NULL_TABLE, smaller_table_size_name);
     }
 
-    std::vector<std::vector<std::string>> schema = read_schema(schema_path);
+    std::vector<std::vector<std::string>> schema = read_schema(smaller_table_size_name);
 
     // Create a mapping to find which attribute goes to which column index
     std::unordered_map<std::string, int> attr_to_idx_mapping;
@@ -161,7 +167,7 @@ void select_qmt(const cmd_args &arguments){
     }
 
     // Read in the table into memory with the given constraints, to try and reduce on the memory load
-    std::vector<std::vector<std::string>> table = from_qmt(table_path, where_additional_args, arguments.select);
+    std::vector<std::vector<std::string>> table = from_qmt(smaller_table_size_name, where_additional_args, arguments.select);
 
     // std::cout << table.size() << " " << table[0].size() << std::endl;
     // for(int i = 0; i < table.size(); ++i){
@@ -711,7 +717,7 @@ Arguments:
 */
 void add_col_qmt(const cmd_args &arguments){
     std::cout << "Running addcol implementation, can fill out semantics later\n";
-    executing_line_num++; // update the execution line number
+    executing_line_num++; // update the execution line number, once for the insert statement itself
 
     std::string tbl_name = arguments.add_cols.tbl_name;
 

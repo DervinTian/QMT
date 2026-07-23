@@ -7,8 +7,9 @@
 
 #include "interpreter.h"
 #include "globals.h"
+#include "globals_disk.h"
 
-// compile command g++ -g -std=c++20 run.cpp interpreter.cpp globals.cpp impls.cpp fill_args.cpp comp.cpp -o run
+// compile command g++ -g -std=c++20 run.cpp interpreter.cpp globals.cpp impls.cpp fill_args.cpp comp.cpp disk.cpp globals_disk.cpp -o run
 // usage cmd ./run [INSERT QMT FILENAME]
 
 int main(int argc, char* argv[]){
@@ -27,11 +28,15 @@ int main(int argc, char* argv[]){
     database_name >> db_path;
 
     init_function_map();
+    free_disk_blocks = get_free_blocks();
 
     std::string line; // hold each QMT line
     std::vector<std::string> command; // hold a chunk of QMT lines that represents a command, ends with ";"
 
     while(std::getline(file, line)){
+        if(line.size() == 0){
+            continue;
+        }
         in_memory_script.push_back(line);
     }
 

@@ -299,10 +299,8 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                         if(!valid_table(args.insert.tbl_name)){
                             exit_with_error(INVALID_TABLENAME, args.insert.tbl_name);
                         }
-                        
-                        std::string schema_path = db_path + "/schemas/" + args.insert.tbl_name;
 
-                        schema_types = read_schema(schema_path)[1];
+                        schema_types = read_schema(args.insert.tbl_name)[1];
 
                         attr.clear();
                         break;
@@ -322,10 +320,12 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                         continue;
                     }
                     if(tmp[j] == ',' || tmp[j] == ')'){
+                        std::cout << "Here1 " << value_idx << std::endl;
                         std::string actual_type = schema_types[value_idx];
                         if(!check_value_against_type[actual_type](attr)){
                             exit_with_error(TYPE_MISMATCH, actual_type);
                         }
+                        std::cout << "Here\n";
 
                         attr = trim_string(attr);
                         args.insert.values.push_back(attr);

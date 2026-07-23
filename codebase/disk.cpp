@@ -132,7 +132,6 @@ void delete_qmt_disk(std::string tbl_name, std::string owner){
     inode root_inode;
     read_block_to_inode(root_inode, 0);
 
-    std::cout << "Root inode size is: " << root_inode.size << std::endl;
     uint32_t tbl_inode_block = find_table_inode_block(root_inode, tbl_name);
 
     std::queue<uint32_t> search_queue;
@@ -206,7 +205,6 @@ void delete_qmt_disk(std::string tbl_name, std::string owner){
     // Will fix this later when I have more time, currently in a rush just to get something working
     while(search_queue.size() > 0){
         uint32_t front_inode_block = search_queue.front();
-        std::cout << "Currently searching " << front_inode_block << std::endl;
         search_queue.pop();
         inode front_inode;
         read_block_to_inode(front_inode, front_inode_block);
@@ -243,8 +241,6 @@ void delete_qmt_disk(std::string tbl_name, std::string owner){
 
 void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_name, std::string col_type){
     // First step is to find the table itself, by searching through the root directory
-
-    std::cout << col_name << col_type << tbl_name << std::endl;
     inode root_inode;
     read_block_to_inode(root_inode, 0);
 
@@ -252,9 +248,6 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
 
     int next_free_block = *free_disk_blocks.begin();
     free_disk_blocks.erase(next_free_block);
-
-    std::cout << "Found table inode block at " << tbl_inode_block << std::endl;
-    std::cout << "The block to use for the column's inode is " << next_free_block << std::endl;
 
     inode tbl_inode;
     read_block_to_inode(tbl_inode, tbl_inode_block);
@@ -281,7 +274,6 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
 
     int num_col_entries = 0;
     if(tbl_inode.size != 0){
-        std::cout << "Checking to see if the col_entries block is full or not" << std::endl;
         col_entry_block = tbl_inode.blocks[tbl_inode.size - 1];
         std::vector<column_entries> tmp_buffer_block;
         read_block_to_col_entries(tmp_buffer_block, col_entry_block);
@@ -289,7 +281,6 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
         for(int i = 0; i < tmp_buffer_block.size(); ++i){
             column_entries &curr_entry = tmp_buffer_block[i];
             if(curr_entry.inode_blocknum == 0){
-                std::cout << "The iteration " << i << std::endl;
                 break;
             }
             num_col_entries++;
@@ -297,15 +288,12 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
     }
 
     if(num_col_entries > 0 && num_col_entries < NUM_COL_ENTRIES){
-        std::cout << "Here\n" << std::endl;
         col_entry_block = tbl_inode.blocks[tbl_inode.size - 1];
-        std::cout << "Writing to " << col_entry_block << std::endl;
         read_block_to_col_entries(tbl_col_entries, col_entry_block);
 
         for(int i = 0; i < tbl_col_entries.size(); ++i){
             column_entries &curr_entry = tbl_col_entries[i];
             if(curr_entry.inode_blocknum == 0){
-                std::cout << "The iteration " << i << std::endl;
 
                 curr_entry.inode_blocknum = next_free_block;
                 for(int j = 0; j < col_name.size(); ++j){
@@ -322,7 +310,6 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
     }
 
     if(num_col_entries == 0 || num_col_entries == NUM_COL_ENTRIES){
-        std::cout << "Me full\n";
         modify_tbl_inode = true;
         col_entry_block = *free_disk_blocks.begin();
         free_disk_blocks.erase(col_entry_block);
@@ -346,7 +333,6 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
                 curr_entry.inode_blocknum = 0;
             }
             tbl_col_entries.push_back(curr_entry);
-            std::cout << "Size is: " << tbl_col_entries.size() << std::endl;
         }
     }
 
@@ -354,14 +340,11 @@ void addcol_qmt_disk(std::string tbl_name, std::string owner, std::string col_na
     int new_entry_block = *free_disk_blocks.begin();
     free_disk_blocks.erase(new_entry_block);
 
-    std::cout << "The new data block that we will write to is " << new_entry_block << std::endl;
-
     std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
     disk.seekp(BLOCK_SIZE * new_entry_block);
 
     uint16_t initial_data_block_size = 2;
     uint16_t initial_data_block_size_be = to_big_endian_16(initial_data_block_size);
-    std::cout << initial_data_block_size_be << std::endl;
     disk.write(reinterpret_cast<const char*>(&initial_data_block_size_be), sizeof(initial_data_block_size_be));
     disk.close();
 
@@ -408,7 +391,6 @@ void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj
         (static_cast<uint8_t>(block[0]) << 8)  |
         static_cast<uint8_t>(block[1]);
     
-    std::cout << "The size for writing to " << input_obj.param_string << " is " << size << std::endl;
     
     std::string write_val;
     if(input_obj.type == STRING){
@@ -478,7 +460,6 @@ void read_qmt_disk(int blocknum, std::string val_type, std::string owner, std::v
         (static_cast<uint8_t>(block[0]) << 8)  |
         static_cast<uint8_t>(block[1]);
     
-    std::cout << "The number of bytes used in " << blocknum << " is " << bytes_used << std::endl;
 
     std::string attr;
     cmp_object attr_obj;

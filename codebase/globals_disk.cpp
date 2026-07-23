@@ -253,7 +253,6 @@ std::unordered_set<int> get_free_blocks(){
         all_blocks.erase(x);
     }
 
-    std::cout << "Done getting free blocks\n";
 
     return all_blocks;
 }

@@ -339,7 +339,7 @@ std::vector<std::vector<std::string>> vectorize_schema(const std::string &schema
     std::string token;
     
     // go through the schema, and delimit by the ',' character
-    while(std::getline(schema_ss, token, ',')){
+    while(std::getline(schema_ss, token, '\0')){
         if(token.size() > 0){
             schema.push_back(token);
         }
@@ -1012,7 +1012,6 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &tbl_name, cons
     }
 
     int num_records = entire_table[0].size();
-    std::cout << num_records << std::endl;
     int num_records_processed = 0;
     // Go line by line and get each row of data: INSTEAD OF USING CSV FILES, CREATE THEM BY READING FROM DISK ESSENTIALLY
     while(num_records_processed < num_records){
@@ -1023,8 +1022,6 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &tbl_name, cons
             table_line += '\0';
         }
         num_records_processed++;
-
-        std::cout << "The table line is: " << table_line << std::endl;
 
         std::stringstream table_ss(table_line);
         std::string table_val;
@@ -1162,12 +1159,6 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &tbl_name, cons
 
         // if we are good to go, then add the record to our result set
         if(push){
-            std::cout << "SADFAFSA\n";
-            for(int i = 0; i < buffer.size(); ++i){
-                std::cout << buffer[i] << " ";
-            }
-            std::cout << std::endl;
-            std::cout << result.size() << std::endl;
             for(size_t i = 0; i < buffer.size(); ++i){
                 result[i].push_back(buffer[i]);
             }
@@ -1196,7 +1187,7 @@ std::vector<std::vector<std::string>> vectorize_csv(const std::vector<std::strin
     if(csv_format_table.size() > 0){
         std::stringstream ss(csv_format_table[0]);
         std::string token;
-        while(std::getline(ss, token, ',')){
+        while(std::getline(ss, token, '\0')){
             num_attributes++;
         }
     }
@@ -1211,7 +1202,7 @@ std::vector<std::vector<std::string>> vectorize_csv(const std::vector<std::strin
     for(size_t j = 0; j < csv_format_table.size(); ++j){
         std::stringstream ss(csv_format_table[j]);
         std::string token;
-        while(std::getline(ss, token, ',')){
+        while(std::getline(ss, token, '\0')){
             result_table[attr_idx].push_back(token);
             attr_idx = (attr_idx + 1) % num_attributes;
         }
@@ -1234,7 +1225,8 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_args &select_c
     // Create a mapping to find which attribute goes to which column index
     std::unordered_map<std::string, int> attr_to_idx_mapping;
     for(size_t j = 0; j < left_tbl_schema[0].size(); ++j){
-        join_result_schema += left_tbl_schema[0][j] + "_" + left_tbl_schema[1][j] + ",";
+        join_result_schema += left_tbl_schema[0][j] + "/" + left_tbl_schema[1][j];
+        join_result_schema += '\0';
         attr_to_idx_mapping[left_tbl_schema[0][j]] = j;
     }
 
@@ -1248,22 +1240,20 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_args &select_c
                 if(row == attr_to_idx_mapping[constraint.join.on.lhs_expression]){
                     hash_key = left_tbl[row][col];
                 }
-                tbl_line += left_tbl[row][col] + ",";
+                tbl_line += left_tbl[row][col];
+                tbl_line += '\0';
             }
 
             parse_hash[hash_key].push_back(tbl_line);
         }
     }
 
-    std::string right_tbl_path = db_path + "/" + constraint.join.right_tbl;
-    std::string right_tbl_schema_path = db_path + "/schemas/" + constraint.join.right_tbl;
-
     // Now that we have hashed the left table, we need to go to the second set
 
-    std::vector<std::vector<std::string>> right_tbl = from_qmt(right_tbl_path, std::vector<select_additional_args>{}, select_constraint);
+    std::vector<std::vector<std::string>> right_tbl = from_qmt(constraint.join.right_tbl, std::vector<select_additional_args>{}, select_constraint);
     
     // In the future, if the select statement only wants like some from the right table, we can update that, for now assume the second set is SELECT (*), like select all columns
-    std::vector<std::vector<std::string>> right_tbl_schema = read_schema(right_tbl_schema_path);
+    std::vector<std::vector<std::string>> right_tbl_schema = read_schema(constraint.join.right_tbl);
 
     std::unordered_set<std::string> right_tbl_column_names = select_constraint.table_columns.at(constraint.join.right_tbl);
     std::vector<std::vector<std::string>> new_right_tbl_schema;
@@ -1279,7 +1269,8 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_args &select_c
     
     attr_to_idx_mapping.clear();
     for(size_t j = 0; j < new_right_tbl_schema[0].size(); ++j){
-        join_result_schema += new_right_tbl_schema[0][j] + "_" + new_right_tbl_schema[1][j] + ",";
+        join_result_schema += new_right_tbl_schema[0][j] + "/" + new_right_tbl_schema[1][j];
+        join_result_schema += '\0';
         attr_to_idx_mapping[new_right_tbl_schema[0][j]] = j;
     }
 
@@ -1296,7 +1287,8 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_args &select_c
                 if(row == attr_to_idx_mapping[constraint.join.on.rhs_expression]){
                     hash_key = right_tbl[row][col];
                 }
-                tbl_line += right_tbl[row][col] + ",";
+                tbl_line += right_tbl[row][col];
+                tbl_line += '\0';
             }
 
             auto it = parse_hash.find(hash_key);
@@ -1331,7 +1323,8 @@ std::vector<std::vector<std::string>> left_join_qmt(const select_args &select_co
     // Create a mapping to find which attribute goes to which column index
     std::unordered_map<std::string, int> attr_to_idx_mapping;
     for(size_t j = 0; j < left_tbl_schema[0].size(); ++j){
-        join_result_schema += left_tbl_schema[0][j] + "_" + left_tbl_schema[1][j] + ",";
+        join_result_schema += left_tbl_schema[0][j] + "/" + left_tbl_schema[1][j];
+        join_result_schema += '\0';
         attr_to_idx_mapping[left_tbl_schema[0][j]] = j;
     }
 
@@ -1345,21 +1338,18 @@ std::vector<std::vector<std::string>> left_join_qmt(const select_args &select_co
                 if(row == attr_to_idx_mapping[constraint.join.on.lhs_expression]){
                     hash_key = left_tbl[row][col];
                 }
-                tbl_line += left_tbl[row][col] + ",";
+                tbl_line += left_tbl[row][col] + "\0";
             }
 
             parse_hash[hash_key].push_back(tbl_line);
         }
     }
 
-    std::string right_tbl_path = db_path + "/" + constraint.join.right_tbl;
-    std::string right_tbl_schema_path = db_path + "/schemas/" + constraint.join.right_tbl;
-
     // Now that we have hashed the left table, we need to go to the second set
-    std::vector<std::vector<std::string>> right_tbl = from_qmt(right_tbl_path, std::vector<select_additional_args>{}, select_constraint);
+    std::vector<std::vector<std::string>> right_tbl = from_qmt(constraint.join.right_tbl, std::vector<select_additional_args>{}, select_constraint);
     
     // In the future, if the select statement only wants like some from the right table, we can update that, for now assume the second set is SELECT (*), like select all columns
-    std::vector<std::vector<std::string>> right_tbl_schema = read_schema(right_tbl_schema_path);
+    std::vector<std::vector<std::string>> right_tbl_schema = read_schema(constraint.join.right_tbl);
 
     std::unordered_set<std::string> right_tbl_column_names = select_constraint.table_columns.at(constraint.join.right_tbl);
     std::vector<std::vector<std::string>> new_right_tbl_schema;
@@ -1376,22 +1366,28 @@ std::vector<std::vector<std::string>> left_join_qmt(const select_args &select_co
     std::string default_values_string;
     attr_to_idx_mapping.clear();
     for(size_t j = 0; j < new_right_tbl_schema[0].size(); ++j){
-        join_result_schema += new_right_tbl_schema[0][j] + "_" + new_right_tbl_schema[1][j] + ",";
+        join_result_schema += new_right_tbl_schema[0][j] + "/" + new_right_tbl_schema[1][j];
+        join_result_schema += '\0';
         attr_to_idx_mapping[right_tbl_schema[0][j]] = j;
         if(new_right_tbl_schema[1][j] == "string"){
-            default_values_string += str_default_value + ",";
+            default_values_string += str_default_value;
+            default_values_string += '\0';
         }
         else if(new_right_tbl_schema[1][j] == "int"){
-            default_values_string += std::to_string(int_default_value) + ",";
+            default_values_string += std::to_string(int_default_value);
+            default_values_string += '\0';
         }
         else if(new_right_tbl_schema[1][j] == "double"){
-            default_values_string += std::to_string(double_default_value) + ",";
+            default_values_string += std::to_string(double_default_value);
+            default_values_string += '\0';
         }
         else if(new_right_tbl_schema[1][j] == "char"){
-            default_values_string += std::to_string(char_default_value) + ",";
+            default_values_string += std::to_string(char_default_value);
+            default_values_string += '\0';
         }
         else if(new_right_tbl_schema[1][j] == "bool"){
-            default_values_string += std::to_string(bool_default_value) + ",";
+            default_values_string += std::to_string(bool_default_value);
+            default_values_string += '\0';
         }
     }
 
@@ -1409,7 +1405,8 @@ std::vector<std::vector<std::string>> left_join_qmt(const select_args &select_co
                 if(row == attr_to_idx_mapping[constraint.join.on.rhs_expression]){
                     hash_key = right_tbl[row][col];
                 }
-                tbl_line += right_tbl[row][col] + ",";
+                tbl_line += right_tbl[row][col];
+                tbl_line += '\0';
             }
 
             auto it = parse_hash.find(hash_key);
@@ -1540,7 +1537,8 @@ std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additio
                     if(row == attr_to_idx_mapping[curr_constraint.order.col]){
                         hash_key = result_tbl[row][col];
                     }
-                    tbl_line += result_tbl[row][col] + ",";
+                    tbl_line += result_tbl[row][col];
+                    tbl_line += '\0';
                 }
                 order_key_pairs[hash_key].push_back(tbl_line);
             }
