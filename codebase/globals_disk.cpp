@@ -2,7 +2,9 @@
 #include <fstream>
 #include <cassert>
 
+#include "globals.h"
 #include "globals_disk.h"
+#include "disk.h"
 
 std::unordered_set<int> free_disk_blocks;
 std::unordered_set<int> used_disk_blocks;
@@ -194,61 +196,66 @@ void write_inode_to_block(const inode& curr_inode, int blocknum){
 
 std::unordered_set<int> get_free_blocks(){
 
-    std::unordered_set<int> all_free_blocks;
+    std::unordered_set<int> all_blocks;
     std::unordered_set<int> curr_used_blocks;
-    std::unordered_set<int> free_blocks;
-    std::ifstream file(VM_DISK, std::ios::binary);
-    int starting_blocknum = 0;
 
-    for(int i = 0; i < NUM_DISK_BLOCKS; ++i){
-        all_free_blocks.insert(i);
+    for(int i = 1; i < NUM_DISK_BLOCKS; ++i){
+        all_blocks.insert(i);
     }
 
-    inode curr_inode;
-    read_block_to_inode(curr_inode, starting_blocknum);
+    std::vector<std::string> all_tables;
 
-    std::stack<int> searched_blocknums;
-    searched_blocknums.push(starting_blocknum);
-    curr_used_blocks.insert(starting_blocknum);
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
 
-    while(searched_blocknums.size() > 0){
-        int curr_blocknum = searched_blocknums.top();
-        inode curr_inode;
-        searched_blocknums.pop();
+    // Find all the tables and store their inodes as being in use
+    for(int i = 0; i < root_inode.size; ++i){
+        std::vector<column_entries> block_col_entries;
+        read_block_to_col_entries(block_col_entries, root_inode.blocks[i]);
+        curr_used_blocks.insert(root_inode.blocks[i]);
 
-        read_block_to_inode(curr_inode, curr_blocknum);
+        for(int j = 0; j < block_col_entries.size(); ++j){
+            if(block_col_entries[j].inode_blocknum == 0){
+                break;
+            }
 
-        if(curr_inode.type == 'i'){
-            for(int i = 0; i < curr_inode.size; ++i){
-                std::vector<column_entries> curr_col_entries;
-                read_block_to_col_entries(curr_col_entries, curr_inode.blocks[i]);
-                curr_used_blocks.insert(curr_inode.blocks[i]);
-                assert(curr_col_entries.size() == NUM_COL_ENTRIES);
+            all_tables.push_back(block_col_entries[j].tbl_col_name);
+            curr_used_blocks.insert(block_col_entries[j].inode_blocknum);
 
-                for(int j = 0; j < curr_col_entries.size(); ++j){
-                    column_entries curr_col_entry = curr_col_entries[j];
-                    if(curr_col_entry.inode_blocknum == 0){
-                        break;
-                    }
-                    
-                    searched_blocknums.push(curr_col_entry.inode_blocknum);
-                    curr_used_blocks.insert(curr_col_entry.inode_blocknum);
-                }
+            inode tbl_inode;
+            read_block_to_inode(tbl_inode, block_col_entries[j].inode_blocknum);
+            for(int k = 0; k < tbl_inode.size; ++k){
+                curr_used_blocks.insert(tbl_inode.blocks[k]);
+            }
+    
+        }
+    }
+
+    // Find all the columns within each table and store all of their blocks as in use
+    for(int i = 0; i < all_tables.size(); ++i){
+        std::string curr_table = all_tables[i];
+        std::vector<int> column_blocks = get_blocknums_for_all_cols_in_tbl(curr_table, SESSION_USER);
+
+        for(int j = 0; j < column_blocks.size(); ++j){
+            int curr_blocknum = column_blocks[j];
+            curr_used_blocks.insert(curr_blocknum);
+
+            inode col_inode;
+            read_block_to_inode(col_inode, curr_blocknum);
+
+            for(int k = 0; k < col_inode.size; ++k){
+                curr_used_blocks.insert(col_inode.blocks[k]);
             }
         }
-
     }
 
-    used_disk_blocks = curr_used_blocks;
-
-    for(auto& x : all_free_blocks){
-        if(curr_used_blocks.find(x) == curr_used_blocks.end()){
-            // means that we didn't find the block number in the curr_used_blocks, it is free
-            free_blocks.insert(x);
-        }
+    for(auto &x : curr_used_blocks){
+        all_blocks.erase(x);
     }
 
-    return free_blocks;
+    std::cout << "Done getting free blocks\n";
+
+    return all_blocks;
 }
 
 void print_out_disk(){
@@ -289,4 +296,16 @@ void print_out_disk(){
         }
         
     }
+}
+
+bool table_exists(std::string tbl_name){
+    bool exists = false;
+
+    return exists;
+}
+
+bool column_exists(std::string tbl_name, std::string col_name){
+    bool exists = false;
+
+    return exists;
 }

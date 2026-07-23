@@ -66,3 +66,5 @@ void write_col_entries_to_block(const std::vector<column_entries>& column_entire
 uint32_t to_big_endian(uint32_t x);
 uint16_t to_big_endian_16(uint16_t x);
 std::unordered_set<int> get_free_blocks();
+bool table_exists(std::string tbl_name);
+bool column_exists(std::string tbl_name, std::string col_name);

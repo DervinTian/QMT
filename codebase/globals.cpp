@@ -2,7 +2,6 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -10,15 +9,19 @@
 #include <cmath>
 #include <unordered_map>
 #include <unordered_set>
-#include <filesystem>
 #include <bitset>
 #include <cassert>
+
+// Comment these out when coding, un comment to test run
+#include <fstream>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 #include "fill_args.h"
 #include "impls.h"
 #include "globals.h"
-
-namespace fs = std::filesystem;
+#include "globals_disk.h"
+#include "disk.h"
 
 // Declare global variables
 std::unordered_map<std::string, std::function<void(const std::vector<std::string>&, cmd_args&)>> fill_in_cmd;
@@ -31,6 +34,7 @@ std::string db_path;
 std::vector<std::string> in_memory_script;
 std::unordered_map<std::string, std::string> alias_to_attr_mapping;
 intermediate_results_buffer intermediate_results;
+std::string SESSION_USER = "user";
 
 int int_default_value = 0;
 double double_default_value = 0.0;
@@ -368,42 +372,47 @@ std::vector<std::vector<std::string>> vectorize_schema(const std::string &schema
 /*
 Function to read in the schema into memory.
 Arguments:
-    - schema_path: path of the schema to be read in
+    - tbl_name: name of the table that we want the schema of
 
 Return:
     - 2D vector containig the results in vectors containing two inner vectors of strings
     - Index 0 is the column names
     - Index 1 is the column types
 */
-std::vector<std::vector<std::string>> read_schema(const std::string &schema_path){
+std::vector<std::vector<std::string>> read_schema(const std::string &tbl_name){
 
-    std::vector<std::vector<std::string>> result;
+    std::vector<std::vector<std::string>> tbl_schema;
+    std::vector<std::string> tbl_schema_types;
+    std::vector<std::string> tbl_schema_names;
 
-    std::vector<std::string> schema;
-    std::vector<std::string> schema_types;
-    std::vector<std::string> schema_names;
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
 
-    // check to make sure that the schema actually exists
-    if(!valid_pathname(schema_path)){
-        return result;
+    int tbl_inode_blocknum = find_table_inode_block(root_inode, tbl_name);
+    inode tbl_inode;
+    read_block_to_inode(tbl_inode, tbl_inode_blocknum);
+
+    for(int i = 0; i < tbl_inode.size; ++i){
+        std::vector<column_entries> block_col_entries;
+        read_block_to_col_entries(block_col_entries, tbl_inode.blocks[i]);
+
+        for(int j = 0; j < block_col_entries.size(); ++j){
+            inode col_inode;
+            int col_inode_blocknum = block_col_entries[j].inode_blocknum;
+            if(col_inode_blocknum == 0){
+                break;
+            }
+
+            tbl_schema_names.push_back(block_col_entries[j].tbl_col_name);
+            tbl_schema_types.push_back(block_col_entries[j].col_type);
+        }
+
     }
-    
-    // find the last slash to find the table name for the schema
-    size_t pos = schema_path.rfind('/');
-    std::string tbl_name = schema_path.substr(pos + 1);
-    if(!fs::exists(schema_path)){
-        exit_with_error(NULL_SCHEMA, tbl_name);
-    }
 
-    std::ifstream schema_file(schema_path);
+    tbl_schema.push_back(tbl_schema_names);
+    tbl_schema.push_back(tbl_schema_types);
 
-    std::string schema_line;
-    std::getline(schema_file, schema_line); // get the table schema, column names and column types
-    schema_file.close();
-
-    result = vectorize_schema(schema_line);
-
-    return result;
+    return tbl_schema;
 }
 
 // Enum to represent the different ordering of operators according to PEMDAS convention
@@ -897,47 +906,18 @@ Return:
     - 2D vector containing the table structure
     - Is a vector that contains vectors of column values
 */
-std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints, const select_args &column_constrants){
+std::vector<std::vector<std::string>> from_qmt(const std::string &tbl_name, const std::vector<select_additional_args> &constraints, const select_args &column_constrants){
 
+    std::cout << "Running from implementation\n";
     // Structure of the in-memory table will be defined here
     // Made up of a vector of vectors
     // Outer vectors represent a type
     // Inner vectors hold the values for that type
     // Values align across all the vectors
     std::vector<std::vector<std::string>> result;
-    
-    size_t pos = table_path.rfind('/'); // find the last / to find the table name
-    std::string tbl_name;
-    if(pos != std::string::npos){
-
-        // get the last attribute after the /, supposed to represent the table name (may have .csv after it)
-        tbl_name = table_path.substr(pos + 1);
-        std::string file_extension;
-        if(tbl_name.size() > 4){
-            // find the last 4 characters and store them
-            for(size_t idx = tbl_name.size() - 4; idx < tbl_name.size(); ++idx){
-                file_extension += tbl_name[idx];
-            }
-
-            // if they are .csv, then it is a csv file so we should trim those off of the table name
-            if(file_extension == ".csv"){
-                tbl_name = tbl_name.substr(0, tbl_name.size() - 4);
-            }
-        }
-
-        if(!fs::exists(table_path)){
-            exit_with_error(NULL_TABLE, tbl_name);
-        }
-    }
-    else{
-        tbl_name = table_path.substr(0, table_path.size() - 4);
-    }
-
-    std::ifstream table_file(table_path);
-    std::string schema_path = db_path + "/schemas/" + tbl_name;
 
     // Read in the schema
-    std::vector<std::vector<std::string>> schema = read_schema(schema_path);
+    std::vector<std::vector<std::string>> schema = read_schema(tbl_name);
     std::vector<std::string>& column_names = schema[0];
     std::vector<std::string>& column_types = schema[1];
     int num_cols = (int)column_names.size();
@@ -968,15 +948,84 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
         }
     }
 
-    // Go line by line and get each row of data
-    while(std::getline(table_file, table_line)){
+    std::vector<std::vector<std::string>> entire_table;
 
-        if(line_num == 0){
-            line_num++;
-            continue;
+    std::vector<int> column_blocknums = get_blocknums_for_all_cols_in_tbl(tbl_name, SESSION_USER);
+    for(int i = 0; i < column_blocknums.size(); ++i){
+        int col_inode_block = column_blocknums[i];
+        inode col_inode;
+        read_block_to_inode(col_inode, col_inode_block);
+
+        std::vector<int> column_blocks = get_blocknums_for_col(tbl_name, col_inode.tbl_col_name, SESSION_USER);
+        for(int j = 0; j < column_blocks.size(); ++j){
+            std::vector<cmp_object> disk_return_values;
+            read_qmt_disk(column_blocks[j], col_inode.col_type, SESSION_USER, disk_return_values);
+
+            if(!strcmp(col_inode.col_type, "string")){
+                std::vector<std::string> vals_to_be_inserted;
+                for(int k = 0; k < disk_return_values.size(); ++k){
+                    vals_to_be_inserted.push_back(disk_return_values[k].param_string);
+                }
+                entire_table.push_back(vals_to_be_inserted);
+            }
+            else if(!strcmp(col_inode.col_type, "char")){
+                std::vector<std::string> vals_to_be_inserted;
+                for(int k = 0; k < disk_return_values.size(); ++k){
+                    vals_to_be_inserted.push_back(std::to_string(disk_return_values[k].param_char));
+                }
+                entire_table.push_back(vals_to_be_inserted);
+            }
+            else if(!strcmp(col_inode.col_type, "int")){
+                std::vector<std::string> vals_to_be_inserted;
+                for(int k = 0; k < disk_return_values.size(); ++k){
+                    vals_to_be_inserted.push_back(std::to_string(disk_return_values[k].param_int));
+                }
+                entire_table.push_back(vals_to_be_inserted);
+            }
+            else if(!strcmp(col_inode.col_type, "double")){
+                std::vector<std::string> vals_to_be_inserted;
+                for(int k = 0; k < disk_return_values.size(); ++k){
+                    vals_to_be_inserted.push_back(std::to_string(disk_return_values[k].param_double));
+                }
+                entire_table.push_back(vals_to_be_inserted);
+            }
+            else if(!strcmp(col_inode.col_type, "bool")){
+                std::vector<std::string> vals_to_be_inserted;
+                for(int k = 0; k < disk_return_values.size(); ++k){
+                    if(disk_return_values[k].param_bool){
+                        vals_to_be_inserted.push_back("true");
+                    }
+                    else{
+                        vals_to_be_inserted.push_back("false");
+                    }
+                }
+                entire_table.push_back(vals_to_be_inserted);
+            }
+            else{
+                exit_with_error(UNKNOWN_TYPE, "");
+            }
         }
+    }
 
+    if(entire_table.size() == 0){
+        return result;
+    }
+
+    int num_records = entire_table[0].size();
+    std::cout << num_records << std::endl;
+    int num_records_processed = 0;
+    // Go line by line and get each row of data: INSTEAD OF USING CSV FILES, CREATE THEM BY READING FROM DISK ESSENTIALLY
+    while(num_records_processed < num_records){
         // initialize variables to be used
+        table_line.clear();
+        for(int i = 0; i < entire_table.size(); ++i){
+            table_line += entire_table[i][num_records_processed];
+            table_line += '\0';
+        }
+        num_records_processed++;
+
+        std::cout << "The table line is: " << table_line << std::endl;
+
         std::stringstream table_ss(table_line);
         std::string table_val;
         std::string curr_col;
@@ -996,8 +1045,7 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
         bool where_constraint = false;
 
         // Parse through each value and update the expression variables and stuff for that row
-        while(std::getline(table_ss, table_val, ',')){
-
+        while(std::getline(table_ss, table_val, '\0')){
             // find the column names and the types for the line
             curr_col = column_names[curr_attribute_counter];
             curr_col_type = column_types[curr_attribute_counter];
@@ -1114,6 +1162,12 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
 
         // if we are good to go, then add the record to our result set
         if(push){
+            std::cout << "SADFAFSA\n";
+            for(int i = 0; i < buffer.size(); ++i){
+                std::cout << buffer[i] << " ";
+            }
+            std::cout << std::endl;
+            std::cout << result.size() << std::endl;
             for(size_t i = 0; i < buffer.size(); ++i){
                 result[i].push_back(buffer[i]);
             }
@@ -1123,7 +1177,6 @@ std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, co
 
     }
 
-    table_file.close();
     return result;
 
 }
@@ -1647,40 +1700,73 @@ Arguments:
     - tbl_name: the table name for the table
 */
 void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std::string tbl_name){
-    std::string table_path = db_path + "/" + tbl_name;
 
     // Check to see if the table exists
-    if(!fs::exists(table_path)){
+    if(table_exists(tbl_name)){
         exit_with_error(NULL_TABLE, tbl_name);
     }
 
-    std::ofstream tbl_file(table_path);
-    std::string table_line;
+    std::vector<std::vector<std::string>> schema = read_schema(tbl_name);
+    std::vector<std::string> &col_names = schema[0];
+    std::vector<std::string> &col_types = schema[1];
 
-    int num_attributes = table.size();
-    int num_rows = 0;
-    size_t num_leading_zeros = std::log2(PAGE_SIZE);
+    for(int i = 0; i < table.size(); ++i){
+        std::vector<cmp_object> input_obj;
 
-    // Go through the table and write out the table out to disk
-    if(num_attributes > 0){
-        num_rows = table[0].size();
-        std::string binary_num_rows = std::bitset<12>(num_rows).to_string(); // HARDCODED TO HAVE PAGE SIZE OF 4096
-        tbl_file << binary_num_rows << std::endl;
-        std::string output_line;
-        for (size_t col = 0; col < table[0].size(); col++) {
-            for (size_t row = 0; row < table.size(); row++) {
-                output_line += table[row][col] + ",";
+        std::string curr_col_name = col_names[i];
+        std::string curr_col_type = col_types[i];
+
+        if(curr_col_type == "string"){
+            for(int j = 0; j < table[i].size(); ++j){
+                cmp_object obj;
+                obj.type = STRING;
+                obj.param_string = table[i][j];
+                input_obj.push_back(obj);
             }
+        }
+        else if(curr_col_type == "char"){
+            for(int j = 0; j < table[i].size(); ++j){
+                cmp_object obj;
+                obj.type = CHAR;
+                obj.param_char = table[i][j][0];
+                input_obj.push_back(obj);
+            }
+        }
+        else if(curr_col_type == "int"){
+            for(int j = 0; j < table[i].size(); ++j){
+                cmp_object obj;
+                obj.type = INT;
+                obj.param_int = std::stoi(table[i][j]);
+                input_obj.push_back(obj);
+            }
+        }
+        else if(curr_col_type == "double"){
+            for(int j = 0; j < table[i].size(); ++j){
+                cmp_object obj;
+                obj.type = DOUBLE;
+                obj.param_double = std::stod(table[i][j]);
+                input_obj.push_back(obj);
+            }
+        }
+        else if(curr_col_type == "bool"){
+            for(int j = 0; j < table[i].size(); ++j){
+                cmp_object obj;
+                obj.type = BOOL;
+                if(table[i][j] == "true"){
+                    obj.param_string = true;
+                }
+                else{
+                    obj.param_string = false;
+                }
+                input_obj.push_back(obj);
+            }
+        }
+        else{
+            exit_with_error(UNKNOWN_TYPE, curr_col_type);
+        }
 
-            tbl_file << output_line << "\n";
-        }
-    }else{
-        for(int i = 0; i < num_leading_zeros; ++i){
-            tbl_file << "0";
-        }
-        tbl_file << std::endl;
+        write_columns_qmt_disk(tbl_name, curr_col_name, curr_col_type, SESSION_USER, input_obj);
+
     }
-
-    tbl_file.close();
 
 }

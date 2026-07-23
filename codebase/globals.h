@@ -267,11 +267,12 @@ extern double double_default_value;
 extern std::string str_default_value;
 extern char char_default_value;
 extern bool bool_default_value;
+extern std::string SESSION_USER;
 
 
 // Additional keywords that can be used in multiple other operations, WHERE, VALUES, ...
 cmp_return_type where_qmt(const select_additional_args &constraint);
-std::vector<std::vector<std::string>> from_qmt(const std::string &table_path, const std::vector<select_additional_args> &constraints, const select_args &column_constrants);
+std::vector<std::vector<std::string>> from_qmt(const std::string &tbl_name, const std::vector<select_additional_args> &constraints, const select_args &column_constrants);
 double math_qmt(const std::vector<std::string> &expression_pieces);
 std::vector<std::vector<std::string>> join_qmt(const select_args &select_constraint, const std::vector<select_additional_args> &constraints, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema);
 std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additional_args> &constraints, const std::vector<std::vector<std::string>> &tbl, const std::vector<std::vector<std::string>> &tbl_schema);
@@ -291,7 +292,7 @@ bool valid_pathname(std::string pathname);
 void check_compatible_schemas(const std::vector<std::string> &source_tbl_schema_types, const std::vector<std::string> &dest_tbl_schema_types);
 std::string trim_string(std::string value);
 std::pair<std::string, std::string> split_table_column(std::string value);
-std::vector<std::vector<std::string>> read_schema(const std::string &schema_path);
+std::vector<std::vector<std::string>> read_schema(const std::string &tbl_name);
 std::vector<std::vector<std::string>> vectorize_schema(const std::string &schema_string);
 std::vector<std::vector<std::string>> vectorize_csv(const std::vector<std::string> &csv_format_table);
 void display_in_memory_table(const std::vector<std::vector<std::string>> &table, const std::vector<std::vector<std::string>> &schema);

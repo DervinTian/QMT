@@ -4,18 +4,22 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <filesystem>
-#include <fstream>
 #include <cctype>
 #include <bitset>
 #include <unordered_set>
 #include <unordered_map>
+#include <cassert>
+
+// Comment these out when coding, un comment to test run
+#include <fstream>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 #include "interpreter.h"
 #include "fill_args.h"
 #include "globals.h"
-
-namespace fs = std::filesystem;
+#include "globals_disk.h"
+#include "disk.h"
 
 /*
 Implementation for the SELECT function
@@ -251,47 +255,51 @@ void insert_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.insert.tbl_name);
     }
 
-    std::string table_path = db_path + "/" + arguments.insert.tbl_name;
-
-    if(!fs::exists(table_path)){
+    if(table_exists(arguments.insert.tbl_name)){
         exit_with_error(NULL_TABLE, arguments.insert.tbl_name);
     }
 
-    std::ifstream input_tbl(table_path);
-    std::string binary_row_count;
-    std::getline(input_tbl, binary_row_count);
-    int num_rows = std::stoi(binary_row_count, nullptr, 2);
-    input_tbl.close();
+    std::vector<int> all_columns_in_tbl = get_blocknums_for_all_cols_in_tbl(arguments.insert.tbl_name, SESSION_USER);
 
-    // Go through the values and create a comma-separated line for the values and insert into the table file
-    std::ofstream tbl(table_path, std::ios::app);
+    assert(all_columns_in_tbl.size() == arguments.insert.values.size());
 
-    // For the values that we want to insert, go through and write it all out to disk with a ',' delimiter
-    for(size_t i = 0; i < arguments.insert.values.size(); ++i){
-        tbl << arguments.insert.values[i] << ",";
+    for(int i = 0; i < all_columns_in_tbl.size(); ++i){
+        inode col_inode;
+        read_block_to_inode(col_inode, all_columns_in_tbl[i]);
+
+        std::vector<int> column_blocknums = get_blocknums_for_col(arguments.insert.tbl_name, col_inode.tbl_col_name, SESSION_USER);
+
+        // Go to the last block and add the name there right?
+        int final_block = column_blocknums[column_blocknums.size() - 1];
+
+        cmp_object insert_obj;
+        if(!strcmp(col_inode.col_type, "string")){
+            insert_obj.type = STRING;
+            insert_obj.param_string = arguments.insert.values[i];
+        }
+        else if(!strcmp(col_inode.col_type, "char")){
+            insert_obj.type = CHAR;
+            insert_obj.param_char = arguments.insert.values[i][0];
+        }
+        else if(!strcmp(col_inode.col_type, "int")){
+            insert_obj.type = INT;
+            insert_obj.param_int = std::stoi(arguments.insert.values[i]);
+        }
+        else if(!strcmp(col_inode.col_type, "double")){
+            insert_obj.type = DOUBLE;
+            insert_obj.param_double = std::stod(arguments.insert.values[i]);
+        }
+        else if(!strcmp(col_inode.col_type, "bool")){
+            insert_obj.type = BOOL;
+            if(arguments.insert.values[i] == "true"){
+                insert_obj.param_bool = true;
+            }
+            else{
+                insert_obj.param_bool = false;
+            }
+        }
+        write_qmt_disk(final_block, SESSION_USER, insert_obj, 'a');
     }
-
-    tbl << '\n';
-    tbl.close();
-
-
-    num_rows++;
-    binary_row_count = std::bitset<12>(num_rows).to_string(); // HARDCODED TO HAVE PAGE SIZE OF 4096
-
-    // Used AI to generate how to modify the a line_inplace given the same amount of characters
-    std::fstream tbl_file(table_path, std::ios::in | std::ios::out);
-
-    if (!tbl_file){
-        exit_with_error(NULL_INPUT_FILE, table_path);
-    }
-
-    std::string line;
-    // Read the first line
-    std::getline(tbl_file, line);
-    // Go back to the beginning of the file
-    tbl_file.seekp(0);
-    // Overwrite the first line
-    tbl_file << binary_row_count << std::endl;
 
     return;
 }
@@ -305,103 +313,100 @@ void create_qmt(const cmd_args &arguments){
     std::cout << "Running create implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
 
+    /*
+    TODO: Add error checking functions for our custom disk
+    */
+
     // Check to make sure that all the names and paths are valid
 
-    if(!valid_table(arguments.create.tbl_name)){
-        exit_with_error(INVALID_TABLENAME, arguments.create.tbl_name);
-    }
-    
-    std::string table_path = db_path + "/" + arguments.create.tbl_name;
+    std::string tbl_name = arguments.create.tbl_name;
 
-    if(fs::exists(table_path)){
-        exit_with_error(NULL_TABLE, arguments.create.tbl_name);
+    if(!valid_table(tbl_name)){
+        exit_with_error(INVALID_TABLENAME, tbl_name);
     }
 
-    // If there is an additional parameter, which would be the FROM to specify a certain .csv file to read in from
-    if(arguments.create.additionals.size() > 0){
-        std::vector<select_additional_args> constraints;
-        for(size_t x = 0; x < arguments.create.additionals.size(); ++x){
-            std::stringstream ss(arguments.create.additionals[x]);
-            std::string cmd_type;
-            ss >> cmd_type;
+    if(table_exists(tbl_name)){
+        exit_with_error(NULL_TABLE, tbl_name);
+    }
+
+    // // If there is an additional parameter, which would be the FROM to specify a certain .csv file to read in from
+    // if(arguments.create.additionals.size() > 0){
+    //     std::vector<select_additional_args> constraints;
+    //     for(size_t x = 0; x < arguments.create.additionals.size(); ++x){
+    //         std::stringstream ss(arguments.create.additionals[x]);
+    //         std::string cmd_type;
+    //         ss >> cmd_type;
             
-            convert_to_lower_case(cmd_type);
-            select_additional_args add_args;
+    //         convert_to_lower_case(cmd_type);
+    //         select_additional_args add_args;
 
-            fill_in_additional_cmds[cmd_type](arguments.create.additionals, add_args);
+    //         fill_in_additional_cmds[cmd_type](arguments.create.additionals, add_args);
             
-            // If we are executing a FROm command go here
-            if(add_args.curr_type == FROM){
-                std::vector<std::vector<std::string>> in_memory_table;
-                std::string csv_tbl_name;
-                size_t pos = add_args.from.data_source.rfind('/'); // find the last /, after that will be the table name
-                for(size_t q = pos + 1; q < add_args.from.data_source.size() - 4; ++q){ // omit the last .csv part of it
-                    csv_tbl_name += add_args.from.data_source[q];
-                }
+    //         // If we are executing a FROm command go here
+    //         if(add_args.curr_type == FROM){
+    //             std::vector<std::vector<std::string>> in_memory_table;
+    //             std::string csv_tbl_name;
+    //             size_t pos = add_args.from.data_source.rfind('/'); // find the last /, after that will be the table name
+    //             for(size_t q = pos + 1; q < add_args.from.data_source.size() - 4; ++q){ // omit the last .csv part of it
+    //                 csv_tbl_name += add_args.from.data_source[q];
+    //             }
 
-                std::string schema_path = db_path + "/schemas/" + csv_tbl_name;
+    //             // There shouldn't be a schema since we are creating it from scratch
+    //             if(!fs::exists(schema_path)){
+    //                 std::vector<std::string> column_names;
+    //                 std::ifstream csv_file(add_args.from.data_source);
+    //                 std::string header;
 
-                // There shouldn't be a schema since we are creating it from scratch
-                if(!fs::exists(schema_path)){
-                    std::vector<std::string> column_names;
-                    std::ifstream csv_file(add_args.from.data_source);
-                    std::string header;
+    //                 std::getline(csv_file, header); // get the top line
+    //                 std::stringstream header_ss(header);
+    //                 std::string attr;
+    //                 if(add_args.from.header){ // if there is a header, that top line is the header
+    //                     while(std::getline(header_ss, attr, ',')){
+    //                         column_names.push_back(attr); // add that to our column names, representing our table schema
+    //                     }
+    //                 }
+    //                 else{ // if there was no header, we can use the top line to count how many columns we need to create
+    //                     std::string tmp_col_name = "column";
+    //                     int counter = 1;
+    //                     while(std::getline(header_ss, attr, ',')){
+    //                         column_names.push_back(tmp_col_name + std::to_string(counter)); // make temporary column names, like column1 if no header given
+    //                         counter++;
+    //                     }
+    //                 }
 
-                    std::getline(csv_file, header); // get the top line
-                    std::stringstream header_ss(header);
-                    std::string attr;
-                    if(add_args.from.header){ // if there is a header, that top line is the header
-                        while(std::getline(header_ss, attr, ',')){
-                            column_names.push_back(attr); // add that to our column names, representing our table schema
-                        }
-                    }
-                    else{ // if there was no header, we can use the top line to count how many columns we need to create
-                        std::string tmp_col_name = "column";
-                        int counter = 1;
-                        while(std::getline(header_ss, attr, ',')){
-                            column_names.push_back(tmp_col_name + std::to_string(counter)); // make temporary column names, like column1 if no header given
-                            counter++;
-                        }
-                    }
+    //                 // Since csv files do not really come with the type, just assume everything is a string type as a default
+    //                 std::string schema_line;
+    //                 for(size_t col = 0; col < column_names.size(); ++col){
+    //                     schema_line += column_names[col] + "_string,";
+    //                 }
 
-                    // Since csv files do not really come with the type, just assume everything is a string type as a default
-                    std::string schema_line;
-                    for(size_t col = 0; col < column_names.size(); ++col){
-                        schema_line += column_names[col] + "_string,";
-                    }
+    //                 // write out the newly created schema to the schema path
+    //                 std::ofstream schema_file(schema_path);
+    //                 schema_file << schema_line << '\n';
+    //                 schema_file.close();
+    //             }
+    //             else{
+    //                 exit_with_error(SCHEMA_EXISTS, csv_tbl_name);
+    //             }
 
-                    // write out the newly created schema to the schema path
-                    std::ofstream schema_file(schema_path);
-                    schema_file << schema_line << '\n';
-                    schema_file.close();
-                }
-                else{
-                    exit_with_error(SCHEMA_EXISTS, csv_tbl_name);
-                }
+    //             // Now that we have a schema, read in the table from the data source
+    //             in_memory_table = from_qmt(add_args.from.data_source, constraints, arguments.select);
 
-                // Now that we have a schema, read in the table from the data source
-                in_memory_table = from_qmt(add_args.from.data_source, constraints, arguments.select);
+    //             // Write the table according to what we read
+    //             write_table_to_disk(in_memory_table, arguments.create.tbl_name);
+    //         }
 
-                // Write the table according to what we read
-                write_table_to_disk(in_memory_table, arguments.create.tbl_name);
-            }
+    //         // updating our PC essentially to move to the next line to interpret
+    //         executing_line_num++;
+    //     }
 
-            // updating our PC essentially to move to the next line to interpret
-            executing_line_num++;
-        }
+    // }
+    // else{
+    //     // Create a blank table in the virtual disk with the given table name
+    //     create_qmt_disk(tbl_name, SESSION_USER);
+    // }
 
-    }
-    else{
-        std::cout << "Here\n";
-        // Create a blank table in the database with the given table name
-        std::ofstream tbl(table_path);
-        int num_leading_zeros = std::log2(PAGE_SIZE);
-        for(int i = 0; i < num_leading_zeros; ++i){
-            tbl << "0";
-        }
-        tbl << std::endl;
-        tbl.close();
-    }
+    create_qmt_disk(tbl_name, SESSION_USER);
 
     return;
 
@@ -708,82 +713,84 @@ void add_col_qmt(const cmd_args &arguments){
     std::cout << "Running addcol implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
 
+    std::string tbl_name = arguments.add_cols.tbl_name;
+
     // Check to make sure that all the names and paths are valid
 
-    if(!valid_table(arguments.create.tbl_name)){
-        exit_with_error(INVALID_TABLENAME, arguments.create.tbl_name);
+    if(!valid_table(arguments.add_cols.tbl_name)){
+        exit_with_error(INVALID_TABLENAME, arguments.add_cols.tbl_name);
     }
 
-    std::string table_path = db_path + "/" + arguments.add_cols.tbl_name;
-    std::string schema_path = db_path + "/schemas/" + arguments.add_cols.tbl_name;
-
-    if(!fs::exists(table_path)){
+    if(table_exists(arguments.add_cols.tbl_name)){
         exit_with_error(NULL_TABLE, arguments.add_cols.tbl_name);
     }
 
-    // Create a schema if there doesn't exist one already
-    if(!fs::exists(schema_path)){
-        std::ofstream schema(schema_path);
-    }
+    addcol_qmt_disk(arguments.add_cols.tbl_name, SESSION_USER, arguments.add_cols.column_name, arguments.add_cols.type);
 
-    // construct the comma-delimited value string to be inserted into the database schema
-    std::string line;
-    std::ifstream schema(schema_path);
-    std::getline(schema, line); // get the top line, representing the schema of the table
-    schema.close();
-
-    line += arguments.add_cols.column_name + "_" + arguments.add_cols.type + ","; // add the new column to the line
-
-    std::ofstream out_schema(schema_path); // write out the new schema to disk
-    out_schema << line;
-
-    out_schema.close();
-    
     // In the case that we already have a populated table and then we want to add a new_col, just add in the default values for the new type for the existing rows
     // Above I defined the default values for each of the types
 
-    std::ifstream table(table_path);
-    std::string table_line;
+    cmp_object default_value_obj;
 
-    std::vector<std::string> in_memory_table;
-
-    // Get all the existing lines of the table
-    int line_num = 0;
-    while(std::getline(table, table_line)){
-        in_memory_table.push_back(table_line);
+    if(arguments.add_cols.type == "string"){
+        default_value_obj.param_string = str_default_value;
+        default_value_obj.type = STRING;
     }
-    table.close();
+    else if(arguments.add_cols.type == "char"){
+        default_value_obj.param_char = char_default_value;
+        default_value_obj.type = CHAR;
+    }
+    else if(arguments.add_cols.type == "int"){
+        default_value_obj.param_int = int_default_value;
+        default_value_obj.type = INT;
+    }
+    else if(arguments.add_cols.type == "double"){
+        default_value_obj.param_double = double_default_value;
+        default_value_obj.type = DOUBLE;
+    }
+    else if(arguments.add_cols.type == "bool"){
+        default_value_obj.param_bool = bool_default_value;
+        default_value_obj.type = BOOL;
+    }
+    else{
+        exit_with_error(UNKNOWN_TYPE, "");
+    }
 
-    std::ofstream output_table(table_path);
+    // Need to find the total number of records in the table, and then insert into the new_column's data block(s) the number
+    // of default values needed
+    int num_records_in_table = 0;
+    int new_col_inode_blocknum = 0;
 
-    // go through the lines and append the default value to the end of the existing row in the table
-    for(size_t i = 0; i < in_memory_table.size(); ++i){
-        if(i == 0){
-            output_table << in_memory_table[i] << std::endl;
-            continue;
+    std::vector<int> all_cols_in_tbl = get_blocknums_for_all_cols_in_tbl(arguments.add_cols.tbl_name, SESSION_USER);
+    for(int i = 0; i < all_cols_in_tbl.size(); ++i){
+        int col_blocknum = all_cols_in_tbl[i];
+
+        inode column_inode;
+        read_block_to_inode(column_inode, col_blocknum);
+
+        if(!strcmp(column_inode.tbl_col_name, tbl_name.c_str())){
+            new_col_inode_blocknum = col_blocknum;
         }
-        std::string curr_line = in_memory_table[i];
-        if(arguments.add_cols.type == "string"){
-            output_table << curr_line + str_default_value + ",\n";
-        }
-        else if(arguments.add_cols.type == "int"){
-            output_table << curr_line + std::to_string(int_default_value) + ",\n";
-        }
-        else if(arguments.add_cols.type == "double"){
-            output_table << curr_line + std::to_string(double_default_value) + ",\n";
-        }
-        else if(arguments.add_cols.type == "bool"){
-            output_table << curr_line + std::to_string(bool_default_value) + ",\n";
-        }
-        else if(arguments.add_cols.type == "char"){
-            output_table << curr_line + std::to_string(char_default_value) + ",\n";
-        }
-        else{
-            exit_with_error(UNKNOWN_TYPE, arguments.add_cols.type);
+
+        std::vector<int> column_blocknums = get_blocknums_for_col(arguments.add_cols.tbl_name, column_inode.tbl_col_name, SESSION_USER);
+        
+        std::vector<cmp_object> disk_return_values;
+        for(int j = 0; j < column_blocknums.size(); ++j){
+            read_qmt_disk(column_blocknums[j], column_inode.col_type, SESSION_USER, disk_return_values);
+            num_records_in_table += disk_return_values.size();
         }
     }
-    output_table.close();
-    
+
+    int num_records_inserted = 0;
+    while(num_records_inserted < num_records_in_table){
+        inode new_col_inode;
+        read_block_to_inode(new_col_inode, new_col_inode_blocknum);
+
+        int block_to_write_to = new_col_inode.blocks[new_col_inode.size - 1];
+
+        write_qmt_disk(block_to_write_to, SESSION_USER, default_value_obj, 'a');
+        num_records_inserted++;
+    }
 
     return;
 
@@ -804,20 +811,11 @@ void delete_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.deleted.tbl_name);
     }
 
-    std::string table_path = db_path + "/" + arguments.deleted.tbl_name;
-    std::string schema_path = db_path + "/schemas/" + arguments.deleted.tbl_name;
-
-    if(!fs::exists(table_path)){
+    if(table_exists(arguments.deleted.tbl_name)){
         exit_with_error(NULL_TABLE, arguments.deleted.tbl_name);
     }
 
-    // If everything is valid, remove the schema and the data table from the database
-    fs::remove(table_path);
-
-    // If we are deleting a table that also has a schema, make sure to delete that schema as well since its table doesn't exist anymore
-    if(fs::exists(schema_path)){
-        fs::remove(schema_path);
-    }
+    delete_qmt_disk(arguments.deleted.tbl_name, SESSION_USER);
 
     return;
 }
@@ -939,14 +937,11 @@ void append_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.append.dest_table);
     }
 
-    std::string dest_table_path = db_path + "/" + arguments.append.dest_table;
-    std::string dest_schema_path = db_path + "/schemas/" + arguments.append.dest_table;
-
-    if(!fs::exists(dest_table_path)){
+    if(table_exists(arguments.append.dest_table)){
         exit_with_error(NULL_TABLE, arguments.move.dest_table);
     }
 
-    std::vector<std::string> dest_schema_types = read_schema(dest_schema_path)[1];
+    std::vector<std::string> dest_schema_types = read_schema(arguments.append.dest_table)[1];
 
     cmd_args inner_select_args;
     inner_select_args.select = arguments.append.select;

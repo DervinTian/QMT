@@ -389,7 +389,7 @@ struct cmp_object{
     cmp_object_type type;
 };
 */
-void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj){
+void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj, char mode){
     /*
     First find go to the disk block specified
     Then just go in and then since all the values will be delimited by '\0', find the last occurrence of that 
@@ -436,27 +436,20 @@ void write_qmt_disk(int blocknum, std::string owner, const cmp_object &input_obj
     }
     
     if(size + write_val.size() > BLOCK_SIZE){
-        // Need to get a new block
-        int next_free_block = *free_disk_blocks.begin();
-        free_disk_blocks.erase(next_free_block);
-
-        int new_byte_offset = BLOCK_SIZE * next_free_block;
-
-        std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
-        disk.seekp(new_byte_offset);
-        uint16_t used_bytes = 2 + write_val.size() + 1;
-        uint16_t used_bytes_be = to_big_endian_16(used_bytes);
-        disk.write(reinterpret_cast<const char*>(&used_bytes_be), sizeof(used_bytes_be));
-
-        disk.seekp(2 + new_byte_offset);
-        disk.write(reinterpret_cast<const char*>(&write_val), sizeof(write_val));
+        // Can't fit all the data into the current block, will need a new one so call this function with a new blocknum
+        return;
     }
     else{
         std::fstream disk(VM_DISK, std::ios::binary | std::ios::in | std::ios::out);
-        disk.seekp(byte_offset + size);
+        if(mode == 'a'){
+            disk.seekp(byte_offset + size);
+        }
+        else{
+            disk.seekp(byte_offset + 2);
+            size = 2;
+        }
         disk.write(reinterpret_cast<const char*>(&write_val), sizeof(write_val));
         size += write_val.size() + 1;
-        disk.seekp(byte_offset + size);
         disk.seekp(byte_offset);
         uint16_t size_be = to_big_endian_16(size);
         disk.write(reinterpret_cast<const char*>(&size_be), sizeof(size_be));
@@ -601,4 +594,103 @@ std::vector<int> get_blocknums_for_all_cols_in_tbl(std::string tbl_name, std::st
     }
 
     return result_blocks;
+}
+
+void write_columns_qmt_disk(std::string tbl_name, std::string col_name, std::string col_type, std::string owner, const std::vector<cmp_object> &input_obj){
+    std::vector<int> col_blocks = get_blocknums_for_col(tbl_name, col_name, owner);
+
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
+
+    int tbl_block = find_table_inode_block(root_inode, tbl_name);
+    inode tbl_inode;
+    read_block_to_inode(tbl_inode, tbl_block);
+
+    int column_inode_blocknum = 0;
+    for(int i = 0; i < tbl_inode.size; ++i){
+        std::vector<column_entries> block_col_entries;
+        read_block_to_col_entries(block_col_entries, tbl_inode.blocks[i]);
+
+        for(int j = 0; j < block_col_entries.size(); ++j){
+            if(block_col_entries[j].inode_blocknum == 0){
+                break;
+            }
+
+            if(block_col_entries[j].tbl_col_name == col_name){
+                column_inode_blocknum = block_col_entries[j].inode_blocknum;
+                break;
+            }
+        }
+    }
+    inode column_inode;
+    read_block_to_inode(column_inode, column_inode_blocknum);
+
+    int num_bytes_used = 2;
+    std::vector<cmp_object> block;
+    int size_of_value = 0;
+    int col_blocks_idx = 0;
+    int block_to_write_to = 0;
+
+    for(int i = 0; i < input_obj.size(); ++i){
+
+        if(col_blocks_idx < col_blocks.size()){
+            block_to_write_to = col_blocks[col_blocks_idx];
+        }
+
+        if(input_obj[i].type == STRING){
+            size_of_value = sizeof(input_obj[i].param_string);
+        }
+        else if(input_obj[i].type == CHAR){
+            size_of_value = sizeof(input_obj[i].param_char);
+        }
+        else if(input_obj[i].type == INT){
+            size_of_value = sizeof(input_obj[i].param_int);
+        }
+        else if(input_obj[i].type == DOUBLE){
+            size_of_value = sizeof(input_obj[i].param_double);
+        }
+        else if(input_obj[i].type == BOOL){
+            size_of_value = sizeof(input_obj[i].param_bool);
+        }
+        else{
+            exit_with_error(UNKNOWN_TYPE, "");
+        }
+
+        if(num_bytes_used + size_of_value > BLOCK_SIZE){
+            if(col_blocks_idx + 1 < col_blocks.size()){
+                col_blocks_idx++;
+                block_to_write_to = col_blocks[col_blocks_idx];
+            }
+            else{
+                column_inode.size++;
+                int next_free_block = *free_disk_blocks.begin();
+                free_disk_blocks.erase(next_free_block);
+
+                column_inode.blocks[column_inode.size - 1] = next_free_block;
+                block_to_write_to = next_free_block;
+                if(i == 0){
+                    write_qmt_disk(block_to_write_to, owner, input_obj[i], 'w'); // Just to clear it rq
+                }
+                else{
+                    write_qmt_disk(block_to_write_to, owner, input_obj[i], 'a');
+                }
+                write_inode_to_block(column_inode, column_inode_blocknum);
+            }
+            // Need to allocate a new block or write to the next block
+            num_bytes_used = 2 + size_of_value;
+        }
+        else{
+            num_bytes_used += size_of_value;
+            if(i == 0){
+                write_qmt_disk(block_to_write_to, owner, input_obj[i], 'w'); // Just to clear it rq
+            }
+            else{
+                write_qmt_disk(block_to_write_to, owner, input_obj[i], 'a');
+            }
+        }
+
+
+    }
+    
+
 }
