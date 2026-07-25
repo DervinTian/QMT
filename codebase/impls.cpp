@@ -589,128 +589,100 @@ void alter_qmt(const cmd_args &arguments){
     std::cout << "Running alter implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
 
-    // Check to make sure that all the names and paths are valid
-    if(!valid_pathname(db_path)){
-        exit_with_error(6, "");
+    if(!valid_table(arguments.alter.tbl_name)){
+        exit_with_error(NULL_TABLE, arguments.alter.tbl_name);
     }
 
-    if(!valid_table(arguments.create.tbl_name)){
-        exit_with_error(7, arguments.create.tbl_name);
-    }
-
-    std::string table_path = db_path + "/" + arguments.alter.tbl_name;
-    std::string schema_path = db_path + "/schemas/" + arguments.alter.tbl_name;
-
-    if(!fs::exists(table_path)){
-        exit_with_error(8, table_path);
+    if(!table_exists(arguments.alter.tbl_name)){
+        exit_with_error(NULL_TABLE, arguments.alter.tbl_name);
     }
 
     // If we are renaming go here
     if(arguments.alter.rename == 1){
         std::cout << "Column to be modified is: " << arguments.alter.column_name << " and modify it to: " << arguments.alter.new_column_name << std::endl;
-        // Create a schema if there doesn't exist one already
-        if(!fs::exists(schema_path)){
-            exit_with_error(NULL_SCHEMA, arguments.alter.tbl_name);
-        }
-
-        std::ifstream schema_file(schema_path);
-        std::string schema_line;
-
-        std::vector<std::string> column_names;
-        std::vector<std::string> column_types;
-
-        // Get the schema representing the column names and column_types
-        std::getline(schema_file, schema_line);
-        schema_file.close();
-
-        std::stringstream comma_separated_values(schema_line);
-        std::string name_type;
-        while(std::getline(comma_separated_values, name_type, ',')){
-            std::stringstream underscore_separated_values(name_type);
-            std::string attr;
-
-            int name_mode = 1;
-            // Go thorugh the line and get the individual column names and values, keeping track of them
-            while(std::getline(underscore_separated_values, attr, '_')){
-                if(name_mode){
-                    // attr represents the name of the column
-                    if(attr == arguments.alter.column_name){
-                        column_names.push_back(arguments.alter.new_column_name); // if we found the column to rename, then set the column name to that
-                    }
-                    else{
-                        column_names.push_back(attr);
-                    }
-                }
-                else{
-                    column_types.push_back(attr);
-                }
-                name_mode = (name_mode + 1) % 2;
-            }
-        }
-
-        // write out the schema to disk
-        std::ofstream schema_output_file(schema_path);
-        for(size_t i = 0; i < column_names.size(); ++i){
-            schema_output_file << column_names[i] + "_" + column_types[i] << ",";
-        }
-
-        executing_line_num++; // update the execution line number
     }
     else if(arguments.alter.modify == 1){ // if we are modifying the column go here
         std::cout << "Column to be modified is: " << arguments.alter.column_name << " and modify it to: " << arguments.alter.new_column_type << std::endl;
-         // Create a schema if there doesn't exist one already
-        if(!fs::exists(schema_path)){
-            exit_with_error(NULL_SCHEMA, arguments.alter.tbl_name);
-        }
+    }
 
-        std::ifstream schema_file(schema_path);
-        std::string schema_line;
+    // Create a schema if there doesn't exist one already
 
-        std::vector<std::string> column_names;
-        std::vector<std::string> column_types;
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
+    std::string tbl_name = arguments.alter.tbl_name;
+    inode tbl_inode;
+    read_block_to_inode(tbl_inode, find_table_inode_block(root_inode, tbl_name));
 
-        // read in the first line of the schema to find out the column types and names
-        std::getline(schema_file, schema_line);
-        schema_file.close();
+    if(!column_exists(arguments.alter.tbl_name, arguments.alter.column_name)){
+        exit_with_error(NULL_COLUMN, arguments.alter.tbl_name);
+    }
 
-        std::stringstream comma_separated_values(schema_line);
-        std::string name_type;
-        // do the same process as above, keeping track of the types this time
-        while(std::getline(comma_separated_values, name_type, ',')){
-            std::stringstream underscore_separated_values(name_type);
-            std::string attr;
+    int old_column_name_blocknum = 0;
+    bool found = false;
+    std::vector<column_entries> new_block_col_entires;
+    int new_block_col_entires_blocknum = 0;
 
-            int type_mode = 0;
-            bool right_column = false;
-            while(std::getline(underscore_separated_values, attr, '_')){
-                if(type_mode){
-                    // attr represents the name of the column
-                    if(right_column){ // if we find the right column name that we want to alter the type of
-                        column_types.push_back(arguments.alter.new_column_type); // keep track of the new type instead
-                        right_column = false;
+    for(int i = 0; i < tbl_inode.size; ++i){
+        std::vector<column_entries> block_col_entires;
+        read_block_to_col_entries(block_col_entires, tbl_inode.blocks[i]);
+
+        for(int j = 0; j < block_col_entires.size(); ++j){
+            if(block_col_entires[j].inode_blocknum == 0){
+                break;
+            }
+
+            if(block_col_entires[j].tbl_col_name == arguments.alter.column_name){
+                old_column_name_blocknum = block_col_entires[j].inode_blocknum;
+
+                if(arguments.alter.rename == 1){
+                    for(int k = 0; k < arguments.alter.new_column_name.size(); ++k){
+                        block_col_entires[j].tbl_col_name[k] = arguments.alter.new_column_name[k];
                     }
-                    else{
-                        column_types.push_back(attr);
-                    }
+                    block_col_entires[j].tbl_col_name[arguments.alter.new_column_name.size()] = '\0';
                 }
-                else{
-                    if(attr == arguments.alter.column_name){ // we found the right column, next we just need to read in it's type accordingly
-                        right_column = true;
+                else if(arguments.alter.modify == 1){ // if we are modifying the column go here
+                    for(int k = 0; k < arguments.alter.new_column_type.size(); ++k){
+                        block_col_entires[j].col_type[k] = arguments.alter.new_column_type[k];
                     }
-                    column_names.push_back(attr);
+                    block_col_entires[j].col_type[arguments.alter.new_column_type.size()] = '\0';
                 }
-                type_mode = (type_mode + 1) % 2;
+
+                found = true;
+                break;
             }
         }
 
-        // Write out the schema back to disk
-        std::ofstream schema_output_file(schema_path);
-        for(size_t i = 0; i < column_names.size(); ++i){
-            schema_output_file << column_names[i] + "_" + column_types[i] << ",";
+        if(found){
+            new_block_col_entires_blocknum = tbl_inode.blocks[i];
+            new_block_col_entires = block_col_entires;
+            break;
         }
-
-        executing_line_num++; // update the execution line number
     }
+
+    if(!found){
+        std::cout << "Never found the column somehow\n";
+    }
+
+    inode old_col_inode;
+    read_block_to_inode(old_col_inode, old_column_name_blocknum);
+    
+    if(arguments.alter.rename == 1){
+        for(int k = 0; k < arguments.alter.new_column_name.size(); ++k){
+            old_col_inode.tbl_col_name[k] = arguments.alter.new_column_name[k];
+        }
+        old_col_inode.tbl_col_name[arguments.alter.new_column_name.size()] = '\0';
+    }
+    else if(arguments.alter.modify == 1){ // if we are modifying the column go here
+        for(int k = 0; k < arguments.alter.new_column_type.size(); ++k){
+            old_col_inode.col_type[k] = arguments.alter.new_column_type[k];
+        }
+        old_col_inode.col_type[arguments.alter.new_column_type.size()] = '\0';
+    }
+
+    write_col_entries_to_block(new_block_col_entires, new_block_col_entires_blocknum);
+    write_inode_to_block(old_col_inode, old_column_name_blocknum);
+
+    executing_line_num++; // update the execution line number
 
     return;
 }

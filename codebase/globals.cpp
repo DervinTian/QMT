@@ -161,6 +161,10 @@ void exit_with_error(int error_code, std::string message){
         std::cout << "Table " << message << " doesn't exist!\n";
         exit(8);
     }
+    else if(error_code == NULL_COLUMN){
+        std::cout << "Column " << message << " doesn't exist!\n";
+        exit(18);
+    }
     else if(error_code == SCHEMA_EXISTS){
         std::cout << "Schema for table " << message << " already exists!" << std::endl;
         exit(9);
@@ -1267,7 +1271,7 @@ std::vector<std::vector<std::string>> inner_join_qmt(const select_args &select_c
             break;
        }
     }
-    
+
     std::vector<std::vector<std::string>> new_right_tbl_schema;
     new_right_tbl_schema.push_back(std::vector<std::string>{});
     new_right_tbl_schema.push_back(std::vector<std::string>{});
