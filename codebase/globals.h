@@ -274,7 +274,7 @@ extern std::string SESSION_USER;
 cmp_return_type where_qmt(const select_additional_args &constraint);
 std::vector<std::vector<std::string>> from_qmt(const std::string &tbl_name, const std::vector<select_additional_args> &constraints, const select_args &column_constrants);
 double math_qmt(const std::vector<std::string> &expression_pieces);
-std::vector<std::vector<std::string>> join_qmt(const select_args &select_constraint, const std::vector<select_additional_args> &constraints, std::vector<std::vector<std::string>> &left_tbl, std::vector<std::vector<std::string>> &left_tbl_schema, std::string &join_result_schema);
+std::vector<std::vector<std::string>> join_qmt(const select_args &select_constraint, const select_additional_args &join_constraints, std::unordered_map<std::string, std::vector<select_additional_args>> &where_args, std::string &join_result_schema);
 std::vector<std::vector<std::string>> order_qmt(const std::vector<select_additional_args> &constraints, const std::vector<std::vector<std::string>> &tbl, const std::vector<std::vector<std::string>> &tbl_schema);
 
 // Additional functions to be used

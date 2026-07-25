@@ -1,7 +1,7 @@
 # COPY # 
 
 ## Purpose ##
-The purpose of the COPY keyword is to copy a table across to another pre-existing table.
+The purpose of the COPY keyword is to copy a table across to another table. If the new table that we want to copy to does not exist, the COPY keyword will create one automatically.
 
 ## Usage ##
 ```cpp

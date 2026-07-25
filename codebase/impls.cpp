@@ -33,7 +33,7 @@ void select_qmt(const cmd_args &arguments){
     bool order = false;
 
     // vector to hold all the different additional constraints, like WHERE clauses and stuff
-    std::vector<select_additional_args> where_additional_args;
+    std::unordered_map<std::string, std::vector<select_additional_args>> where_additional_args;
     std::vector<select_additional_args> join_additional_args;
     std::vector<select_additional_args> order_additional_args;
 
@@ -82,7 +82,8 @@ void select_qmt(const cmd_args &arguments){
                 additional_cmd.clear();
 
                 if(prev_mode == WHERE){
-                    where_additional_args.push_back(add_args);
+                    std::string left_tbl_name = split_table_column(add_args.where.lhs_expression).first;
+                    where_additional_args[left_tbl_name].push_back(add_args);
                 }
                 else if(prev_mode == JOIN){
                     join_additional_args.push_back(add_args);
@@ -107,7 +108,7 @@ void select_qmt(const cmd_args &arguments){
 
         if(curr_mode == WHERE){
             fill_in_additional_cmds["where"](additional_cmd, add_args);
-            where_additional_args.push_back(add_args);
+            where_additional_args[add_args.where.tbl_name].push_back(add_args);
         }
         else if(curr_mode == JOIN){
             fill_in_additional_cmds["join"](additional_cmd, add_args);
@@ -167,7 +168,7 @@ void select_qmt(const cmd_args &arguments){
     }
 
     // Read in the table into memory with the given constraints, to try and reduce on the memory load
-    std::vector<std::vector<std::string>> table = from_qmt(smaller_table_size_name, where_additional_args, arguments.select);
+    std::vector<std::vector<std::string>> table = from_qmt(smaller_table_size_name, where_additional_args[smaller_table_size_name], arguments.select);
 
     // std::cout << table.size() << " " << table[0].size() << std::endl;
     // for(int i = 0; i < table.size(); ++i){
@@ -224,7 +225,11 @@ void select_qmt(const cmd_args &arguments){
             filtered_schema[1].push_back(schema[1][attr_to_idx_mapping[column_name]]);
         }
 
-        result_table = join_qmt(arguments.select, join_additional_args, table, filtered_schema, join_result_schema);
+        table.clear();
+
+        for(int i = 0; i < join_additional_args.size(); ++i){
+            result_table = join_qmt(arguments.select, join_additional_args[i], where_additional_args, join_result_schema);
+        }
 
         result_schema = vectorize_schema(join_result_schema);
 
@@ -832,7 +837,7 @@ Arguments:
     - arguments: contains the table that we want to copy, and the table where want it to be copied to
 */
 void copy_qmt(const cmd_args &arguments){
-    std::cout << "Running delete implementation, can fill out semantics later\n";
+    std::cout << "Running copy implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
 
     if(!valid_table(arguments.copy.orig_table)){
@@ -840,35 +845,37 @@ void copy_qmt(const cmd_args &arguments){
     }
 
     if(!valid_table(arguments.copy.copy_table)){
-        exit_with_error(INVALID_TABLENAME, arguments.copy.orig_table);
+        exit_with_error(INVALID_TABLENAME, arguments.copy.copy_table);
     }
 
-    std::string orig_table_path = db_path + "/" + arguments.copy.orig_table;
-    std::string orig_schema_path = db_path + "/schemas/" + arguments.copy.orig_table;
-
-    std::string copy_table_path = db_path + "/" + arguments.copy.orig_table;
-    std::string copy_schema_path = db_path + "/schemas/" + arguments.copy.orig_table;
-
-    if(!fs::exists(orig_table_path)){
-        exit_with_error(NULL_TABLE, arguments.copy.orig_table);
-    }
-
-    if(!fs::exists(copy_table_path)){
+    if(table_exists(arguments.copy.orig_table)){
         exit_with_error(NULL_TABLE, arguments.copy.orig_table);
     }
 
     // read in schema, so that we can compare and make sure that we can actually copy the tables over
-    std::vector<std::string> original_tbl_schema_types = read_schema(orig_schema_path)[1];
-    std::vector<std::string> copy_tbl_schema_types = read_schema(copy_schema_path)[1];
+    std::vector<std::vector<std::string>> original_tbl_schema = read_schema(arguments.copy.orig_table);
 
-    if(original_tbl_schema_types.size() != copy_tbl_schema_types.size()){
+    if(!table_exists(arguments.copy.copy_table)){
+        create_qmt_disk(arguments.copy.copy_table, SESSION_USER);
+        for(int i = 0; i < original_tbl_schema[0].size(); ++i){
+            addcol_qmt_disk(arguments.copy.copy_table, SESSION_USER, original_tbl_schema[0][i], original_tbl_schema[1][i]);
+        }
+    }
+
+    std::vector<std::vector<std::string>> copy_tbl_schema = read_schema(arguments.copy.copy_table);
+
+    if(original_tbl_schema[0].size() != copy_tbl_schema[0].size()){
+        std::cout << original_tbl_schema[0].size() << " vs " << copy_tbl_schema[0].size() << std::endl;
         exit_with_error(DIFF_SCHEMAS, "");
     }
 
-    check_compatible_schemas(original_tbl_schema_types, copy_tbl_schema_types);
+    check_compatible_schemas(original_tbl_schema[1], copy_tbl_schema[1]);
+
+    cmd_args selection_args;
+    selection_args.select.table_columns[arguments.copy.orig_table].insert("*");
 
     // empty constraints for now, but actually could be a good idea to have some constraints, like only copy select columns over
-    std::vector<std::vector<std::string>> original_table = from_qmt(orig_table_path, std::vector<select_additional_args>{}, arguments.select);
+    std::vector<std::vector<std::string>> original_table = from_qmt(arguments.copy.orig_table, std::vector<select_additional_args>{}, selection_args.select);
 
     write_table_to_disk(original_table, arguments.copy.copy_table);
     return;
