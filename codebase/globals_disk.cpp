@@ -298,13 +298,54 @@ void print_out_disk(){
 }
 
 bool table_exists(std::string tbl_name){
-    bool exists = false;
 
-    return exists;
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
+
+    for(int i = 0; i < root_inode.size; ++i){
+        std::vector<column_entries> block_col_entries;
+        read_block_to_col_entries(block_col_entries, root_inode.blocks[i]);
+
+        for(int j = 0; j < block_col_entries.size(); ++j){
+            if(block_col_entries[j].inode_blocknum == 0){
+                break;
+            }
+
+            if(block_col_entries[j].tbl_col_name == tbl_name){
+                return true;
+            }
+        }
+
+    }
+
+    return false;
 }
 
 bool column_exists(std::string tbl_name, std::string col_name){
     bool exists = false;
 
-    return exists;
+    inode root_inode;
+    read_block_to_inode(root_inode, 0);
+
+    int tbl_inode_blocknum = find_table_inode_block(root_inode, tbl_name);
+
+    inode tbl_inode;
+    read_block_to_inode(tbl_inode, tbl_inode_blocknum);
+
+    for(int i = 0; i < tbl_inode.size; ++i){
+        std::vector<column_entries> block_col_entries;
+        read_block_to_col_entries(block_col_entries, tbl_inode.blocks[i]);
+
+        for(int j = 0; j < block_col_entries.size(); ++j){
+            if(block_col_entries[j].inode_blocknum == 0){
+                break;
+            }
+
+            if(block_col_entries[j].tbl_col_name == col_name){
+                return true;
+            }
+        }
+    }
+
+    return false;
 }

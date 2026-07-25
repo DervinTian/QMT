@@ -130,7 +130,7 @@ void select_qmt(const cmd_args &arguments){
     for(auto &pair : arguments.select.table_columns){
         std::string tbl_name = pair.first;
         std::string binary_row_count;
-        if(table_exists(tbl_name)){
+        if(!table_exists(tbl_name)){
             exit_with_error(NULL_TABLE, pair.first);
         }
         
@@ -155,7 +155,7 @@ void select_qmt(const cmd_args &arguments){
 
     }
 
-    if(table_exists(smaller_table_size_name)){
+    if(!table_exists(smaller_table_size_name)){
         exit_with_error(NULL_TABLE, smaller_table_size_name);
     }
 
@@ -266,7 +266,7 @@ void insert_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.insert.tbl_name);
     }
 
-    if(table_exists(arguments.insert.tbl_name)){
+    if(!table_exists(arguments.insert.tbl_name)){
         exit_with_error(NULL_TABLE, arguments.insert.tbl_name);
     }
 
@@ -336,7 +336,7 @@ void create_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, tbl_name);
     }
 
-    if(table_exists(tbl_name)){
+    if(!table_exists(tbl_name)){
         exit_with_error(NULL_TABLE, tbl_name);
     }
 
@@ -732,7 +732,7 @@ void add_col_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.add_cols.tbl_name);
     }
 
-    if(table_exists(arguments.add_cols.tbl_name)){
+    if(!table_exists(arguments.add_cols.tbl_name)){
         exit_with_error(NULL_TABLE, arguments.add_cols.tbl_name);
     }
 
@@ -822,7 +822,7 @@ void delete_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.deleted.tbl_name);
     }
 
-    if(table_exists(arguments.deleted.tbl_name)){
+    if(!table_exists(arguments.deleted.tbl_name)){
         exit_with_error(NULL_TABLE, arguments.deleted.tbl_name);
     }
 
@@ -848,7 +848,7 @@ void copy_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.copy.copy_table);
     }
 
-    if(table_exists(arguments.copy.orig_table)){
+    if(!table_exists(arguments.copy.orig_table)){
         exit_with_error(NULL_TABLE, arguments.copy.orig_table);
     }
 
@@ -890,42 +890,42 @@ void move_qmt(const cmd_args &arguments){
     std::cout << "Running move implementation, can fill out semantics later\n";
     executing_line_num++; // update the execution line number
 
-    // Do error checking to ensure that the database and the tables are valid paths
-
     if(!valid_table(arguments.move.source_table)){
         exit_with_error(INVALID_TABLENAME, arguments.move.source_table);
     }
 
-    if(!valid_table(arguments.move.dest_table)){
+    if(!valid_table(arguments.move.source_table)){
         exit_with_error(INVALID_TABLENAME, arguments.move.dest_table);
     }
 
-    std::string source_table_path = db_path + "/" + arguments.move.source_table;
-    std::string source_schema_path = db_path + "/schemas/" + arguments.move.source_table;
-
-    std::string dest_table_path = db_path + "/" + arguments.move.dest_table;
-    std::string dest_schema_path = db_path + "/schemas/" + arguments.move.dest_table;
-
-    if(!fs::exists(source_table_path)){
-        exit_with_error(NULL_TABLE, arguments.move.source_table);
-    }
-
-    if(!fs::exists(dest_table_path)){
-        exit_with_error(NULL_TABLE, arguments.move.dest_table);
+    if(!table_exists(arguments.move.source_table)){
+        exit_with_error(NULL_TABLE, arguments.copy.orig_table);
     }
 
     // read in schema, so that we can compare and make sure that we can actually copy the tables over
-    std::vector<std::string> source_tbl_schema_types = read_schema(source_schema_path)[1];
-    std::vector<std::string> dest_tbl_schema_types = read_schema(dest_schema_path)[1];
+    std::vector<std::vector<std::string>> original_tbl_schema = read_schema(arguments.copy.orig_table);
 
-    if(source_tbl_schema_types.size() != dest_tbl_schema_types.size()){
+    if(!table_exists(arguments.move.dest_table)){
+        create_qmt_disk(arguments.move.dest_table, SESSION_USER);
+        for(int i = 0; i < original_tbl_schema[0].size(); ++i){
+            addcol_qmt_disk(arguments.move.dest_table, SESSION_USER, original_tbl_schema[0][i], original_tbl_schema[1][i]);
+        }
+    }
+
+    std::vector<std::vector<std::string>> copy_tbl_schema = read_schema(arguments.move.dest_table);
+
+    if(original_tbl_schema[0].size() != copy_tbl_schema[0].size()){
+        std::cout << original_tbl_schema[0].size() << " vs " << copy_tbl_schema[0].size() << std::endl;
         exit_with_error(DIFF_SCHEMAS, "");
     }
 
-    check_compatible_schemas(source_tbl_schema_types, dest_tbl_schema_types);
+    check_compatible_schemas(original_tbl_schema[1], copy_tbl_schema[1]);
+
+    select_args selection_args;
+    selection_args.table_columns[arguments.move.dest_table].insert("*");
 
     // empty constraints for now, but actually could be a good idea to have some constraints, like only copy select columns over
-    std::vector<std::vector<std::string>> original_table = from_qmt(source_table_path, std::vector<select_additional_args>{}, arguments.select);
+    std::vector<std::vector<std::string>> original_table = from_qmt(arguments.move.source_table, std::vector<select_additional_args>{}, selection_args);
     std::vector<std::vector<std::string>> empty_table;
 
     // Going to need to make these atomic somehow
@@ -950,7 +950,7 @@ void append_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.append.dest_table);
     }
 
-    if(table_exists(arguments.append.dest_table)){
+    if(!table_exists(arguments.append.dest_table)){
         exit_with_error(NULL_TABLE, arguments.move.dest_table);
     }
 
