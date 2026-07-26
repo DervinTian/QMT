@@ -40,6 +40,7 @@ enum error_codes{
     NULL_TABLE,
     NULL_COLUMN,
     SCHEMA_EXISTS,
+    TABLE_EXISTS,
     EMPTY_TABLE,
     NULL_SCHEMA,
     UNKNOWN_TYPE,

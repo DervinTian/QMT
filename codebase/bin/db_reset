@@ -1,0 +1,5 @@
+#!/bin/bash
+
+rm -r vm_disk.bin
+./initialize_disk
+g++ -g -std=c++20 run.cpp interpreter.cpp globals.cpp impls.cpp fill_args.cpp comp.cpp disk.cpp globals_disk.cpp -o run

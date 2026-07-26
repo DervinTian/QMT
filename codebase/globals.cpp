@@ -169,6 +169,10 @@ void exit_with_error(int error_code, std::string message){
         std::cout << "Schema for table " << message << " already exists!" << std::endl;
         exit(9);
     }
+    else if(error_code == TABLE_EXISTS){
+        std::cout << "Table " << message << " already exists!" << std::endl;
+        exit(19);
+    }
     else if(error_code == EMPTY_TABLE){
         std::cout << "Empty table, cannot update records on an empty table!\n";
         exit(10);
@@ -290,6 +294,7 @@ void check_compatible_schemas(const std::vector<std::string> &source_tbl_schema_
             }
         }
         else{
+            std::cout << "checking compatible schemas\n";
             exit_with_error(UNKNOWN_TYPE, dest_tbl_schema_types[i]);
         }
     }
@@ -1725,7 +1730,7 @@ Arguments:
 void write_table_to_disk(const std::vector<std::vector<std::string>> &table, std::string tbl_name){
 
     // Check to see if the table exists
-    if(table_exists(tbl_name)){
+    if(!table_exists(tbl_name)){
         exit_with_error(NULL_TABLE, tbl_name);
     }
 

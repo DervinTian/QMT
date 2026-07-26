@@ -336,7 +336,7 @@ void create_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, tbl_name);
     }
 
-    if(!table_exists(tbl_name)){
+    if(table_exists(tbl_name)){
         exit_with_error(NULL_TABLE, tbl_name);
     }
 
@@ -438,15 +438,12 @@ void update_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.update.tbl_name);
     }
 
-    std::string table_path = db_path + "/" + arguments.update.tbl_name;
-    std::string schema_path = db_path + "/schemas/" + arguments.update.tbl_name;
-
-    if(!fs::exists(table_path)){
+    if(!table_exists(arguments.update.tbl_name)){
         exit_with_error(NULL_TABLE, arguments.update.tbl_name);
     }
 
     // Similar to the SELECt keyword, need to keep track of what constraints there are on the UPDATE clause
-    std::vector<select_additional_args> additional_args;
+    std::unordered_map<std::string, std::vector<select_additional_args>> where_additional_args;
     std::vector<std::string> aux_additional_args;
     select_additional_args add_args;
 
@@ -482,7 +479,7 @@ void update_qmt(const cmd_args &arguments){
             aux_additional_args.clear();
 
             if(curr_mode == WHERE){
-                additional_args.push_back(add_args);
+                where_additional_args[add_args.where.tbl_name].push_back(add_args);
             }
             aux_additional_args.push_back(arguments.select.additionals[i]);
         }
@@ -492,11 +489,11 @@ void update_qmt(const cmd_args &arguments){
 
     fill_in_additional_cmds[cmd_type](aux_additional_args, add_args);
     if(curr_mode == WHERE){
-        additional_args.push_back(add_args);
+        where_additional_args[add_args.where.tbl_name].push_back(add_args);
     }
 
     // Read in the schema
-    std::vector<std::vector<std::string>> schema = read_schema(schema_path);
+    std::vector<std::vector<std::string>> schema = read_schema(arguments.update.tbl_name);
 
     // Create a mapping to find which attribute goes to which column index, used later to find column_names and column_types
     std::unordered_map<std::string, int> attr_to_idx_mapping;
@@ -505,12 +502,12 @@ void update_qmt(const cmd_args &arguments){
     }
 
     // Read in the table the filtered results, so we know what to update
-    std::vector<std::vector<std::string>> filetered_table = from_qmt(table_path, additional_args, arguments.select);
+    std::vector<std::vector<std::string>> filetered_table = from_qmt(arguments.update.tbl_name, where_additional_args[arguments.update.tbl_name], arguments.select);
     std::unordered_set<std::string> filtered_results;
     std::unordered_set<size_t> columns_in_there;
 
     // Read in the entire table into memory, so that we can change the exact value from the original table to the new value
-    std::vector<std::vector<std::string>> whole_table = from_qmt(table_path, std::vector<select_additional_args>{}, arguments.select);
+    std::vector<std::vector<std::string>> whole_table = from_qmt(arguments.update.tbl_name, std::vector<select_additional_args>{}, arguments.select);
     size_t num_cols = whole_table.size();
 
     if(filetered_table.size() > 0){
@@ -875,11 +872,12 @@ void move_qmt(const cmd_args &arguments){
     }
 
     // read in schema, so that we can compare and make sure that we can actually copy the tables over
-    std::vector<std::vector<std::string>> original_tbl_schema = read_schema(arguments.copy.orig_table);
+    std::vector<std::vector<std::string>> original_tbl_schema = read_schema(arguments.move.source_table);
 
     if(!table_exists(arguments.move.dest_table)){
         create_qmt_disk(arguments.move.dest_table, SESSION_USER);
         for(int i = 0; i < original_tbl_schema[0].size(); ++i){
+            std::cout << original_tbl_schema[0][i] << " " << original_tbl_schema[1][i] << std::endl;
             addcol_qmt_disk(arguments.move.dest_table, SESSION_USER, original_tbl_schema[0][i], original_tbl_schema[1][i]);
         }
     }
@@ -894,7 +892,7 @@ void move_qmt(const cmd_args &arguments){
     check_compatible_schemas(original_tbl_schema[1], copy_tbl_schema[1]);
 
     select_args selection_args;
-    selection_args.table_columns[arguments.move.dest_table].insert("*");
+    selection_args.table_columns[arguments.move.source_table].insert("*");
 
     // empty constraints for now, but actually could be a good idea to have some constraints, like only copy select columns over
     std::vector<std::vector<std::string>> original_table = from_qmt(arguments.move.source_table, std::vector<select_additional_args>{}, selection_args);
@@ -922,8 +920,10 @@ void append_qmt(const cmd_args &arguments){
         exit_with_error(INVALID_TABLENAME, arguments.append.dest_table);
     }
 
+    std::cout << "The dest table is " << arguments.append.dest_table << std::endl;
+
     if(!table_exists(arguments.append.dest_table)){
-        exit_with_error(NULL_TABLE, arguments.move.dest_table);
+        exit_with_error(NULL_TABLE, arguments.append.dest_table);
     }
 
     std::vector<std::string> dest_schema_types = read_schema(arguments.append.dest_table)[1];

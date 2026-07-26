@@ -320,12 +320,10 @@ void fill_insert_args(const std::vector<std::string> &command, cmd_args &args){
                         continue;
                     }
                     if(tmp[j] == ',' || tmp[j] == ')'){
-                        std::cout << "Here1 " << value_idx << std::endl;
                         std::string actual_type = schema_types[value_idx];
                         if(!check_value_against_type[actual_type](attr)){
                             exit_with_error(TYPE_MISMATCH, actual_type);
                         }
-                        std::cout << "Here\n";
 
                         attr = trim_string(attr);
                         args.insert.values.push_back(attr);
@@ -1056,7 +1054,7 @@ Arguments:
     - args: The arguments to fill in, later to be passed into the implementation
 */
 void fill_append_args(const std::vector<std::string> &command, cmd_args &args){
-    std::cout << "Order function added to the function map, can fill out args for Order statements" << std::endl;
+    std::cout << "Append function added to the function map, can fill out args for Order statements" << std::endl;
 
     bool append_mode = false;
     // For now assume that the first line of the command will always be the append keyword
